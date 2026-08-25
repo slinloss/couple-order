@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>小厨房点餐</title>
-  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- Vue 3 -->
   <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
   <style>
     :root {
@@ -33,9 +31,9 @@
       background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden;
     }
     .loading-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255,249,245,0.9); display: flex; align-items: center;
-      justify-content: center; z-index: 9999; flex-direction: column; gap: 16px;
+      position: fixed; inset: 0; background: rgba(255,249,245,0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; flex-direction: column; gap: 16px;
     }
     .loading-spinner {
       width: 40px; height: 40px; border: 3px solid var(--primary-light);
@@ -57,33 +55,33 @@
     }
     .top-bar-action {
       font-size: 14px; color: var(--primary-dark); cursor: pointer;
-      background: none; border: none; font-weight: 500; padding: 6px 12px;
-      border-radius: 20px; background: var(--primary-light);
+      background: var(--primary-light); border: none; font-weight: 500;
+      padding: 6px 12px; border-radius: 20px;
     }
-    .page { padding: 16px; padding-bottom: 80px; max-width: 420px; margin: 0 auto; }
-    .role-page {
+    .page { padding: 16px; padding-bottom: 90px; max-width: 440px; margin: 0 auto; }
+    .entry-page {
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; min-height: 100vh; padding: 32px;
       background: linear-gradient(160deg, #FFF9F5 0%, #FFE8EC 50%, #FFECD2 100%);
     }
-    .role-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-    .role-subtitle { color: var(--text-light); margin-bottom: 40px; font-size: 15px; }
-    .role-cards { display: flex; gap: 16px; width: 100%; max-width: 340px; }
-    .role-card {
+    .entry-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .entry-subtitle { color: var(--text-light); margin-bottom: 36px; font-size: 15px; text-align: center; line-height: 1.6; }
+    .entry-cards { display: flex; gap: 16px; width: 100%; max-width: 340px; }
+    .entry-card {
       flex: 1; background: var(--card); border-radius: var(--radius);
       padding: 24px 16px; text-align: center; cursor: pointer;
-      box-shadow: var(--shadow); transition: all 0.3s; border: 2px solid transparent;
+      box-shadow: var(--shadow); transition: transform 0.2s; border: 2px solid transparent;
+      text-decoration: none; color: var(--text);
     }
-    .role-card:active { transform: scale(0.96); }
-    .role-card:hover { border-color: var(--primary); }
-    .role-avatar-placeholder {
+    .entry-card:active { transform: scale(0.96); }
+    .entry-avatar {
       width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 12px;
       background: var(--primary-light); display: flex; align-items: center;
       justify-content: center; font-size: 28px; overflow: hidden;
     }
-    .role-avatar-placeholder img { width: 100%; height: 100%; object-fit: cover; }
-    .role-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-    .role-desc { font-size: 12px; color: var(--text-light); }
+    .entry-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .entry-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .entry-desc { font-size: 12px; color: var(--text-light); }
     .bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: rgba(255,255,255,0.98); backdrop-filter: blur(10px);
@@ -98,41 +96,43 @@
     .nav-label { font-size: 11px; color: var(--text-muted); }
     .nav-item.active .nav-label { color: var(--primary); font-weight: 500; }
     .nav-badge {
-      position: absolute; top: 2px; right: calc(50% - 18px);
+      position: absolute; top: 0; left: 50%; margin-left: 6px;
       background: var(--danger); color: white; font-size: 10px;
-      min-width: 16px; height: 16px; border-radius: 8px;
+      min-width: 17px; height: 17px; border-radius: 9px;
       display: flex; align-items: center; justify-content: center; padding: 0 4px;
+      font-weight: 600; box-shadow: 0 0 0 2px #fff;
     }
     .card {
       background: var(--card); border-radius: var(--radius);
       box-shadow: var(--shadow); overflow: hidden; margin-bottom: 12px;
     }
     .card-body { padding: 16px; }
+    .custom-entry {
+      display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #FFE8EC, #FFECD2);
+      border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
+      cursor: pointer; border: 1.5px dashed var(--primary); transition: transform 0.15s;
+    }
+    .custom-entry:active { transform: scale(0.98); }
+    .custom-entry-icon { font-size: 26px; }
+    .custom-entry-text b { font-size: 15px; }
+    .custom-entry-text div { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+    .custom-entry-arrow { margin-left: auto; color: var(--primary-dark); font-size: 18px; }
     .menu-item {
       display: flex; gap: 12px; padding: 14px 16px;
       border-bottom: 1px solid var(--border); align-items: center;
     }
     .menu-item:last-child { border-bottom: none; }
-    .menu-item-img {
-      width: 72px; height: 72px; border-radius: var(--radius-sm);
-      object-fit: cover; background: var(--secondary); flex-shrink: 0;
-    }
+    .menu-item-img { width: 72px; height: 72px; border-radius: var(--radius-sm); object-fit: cover; background: var(--secondary); flex-shrink: 0; }
     .menu-item-img-placeholder {
-      width: 72px; height: 72px; border-radius: var(--radius-sm);
-      background: var(--secondary); display: flex; align-items: center;
-      justify-content: center; font-size: 28px; flex-shrink: 0;
+      width: 72px; height: 72px; border-radius: var(--radius-sm); background: var(--secondary);
+      display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0;
     }
     .menu-item-info { flex: 1; min-width: 0; }
     .menu-item-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-    .menu-item-desc {
-      font-size: 13px; color: var(--text-light);
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
+    .menu-item-desc { font-size: 13px; color: var(--text-light); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .menu-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
-    .menu-item-actions button {
-      width: 32px; height: 32px; border-radius: 50%; border: none;
-      display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
-    }
+    .menu-item-actions button { width: 32px; height: 32px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
     .btn-edit { background: var(--secondary); }
     .btn-delete { background: #FFE5E5; }
     .form-group { margin-bottom: 16px; }
@@ -143,29 +143,29 @@
       transition: border-color 0.2s; background: var(--card);
     }
     .form-input:focus, .form-textarea:focus { border-color: var(--primary); }
-    .form-textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+    .form-textarea { min-height: 90px; resize: vertical; font-family: inherit; }
     .img-upload {
       width: 100%; height: 160px; border: 2px dashed var(--border);
       border-radius: var(--radius-sm); display: flex; flex-direction: column;
       align-items: center; justify-content: center; cursor: pointer;
       transition: all 0.2s; position: relative; overflow: hidden;
     }
-    .img-upload:hover { border-color: var(--primary); background: var(--primary-light); }
-    .img-upload img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .img-upload:active { border-color: var(--primary); background: var(--primary-light); }
+    .img-upload img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .img-upload-text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
     .img-upload-icon { font-size: 32px; }
     .img-upload input { display: none; }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       padding: 12px 24px; border-radius: 24px; font-size: 15px;
-      font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+      font-weight: 500; cursor: pointer; border: none; transition: transform 0.15s;
     }
     .btn:active { transform: scale(0.96); }
     .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-dark); }
     .btn-secondary { background: var(--primary-light); color: var(--primary-dark); }
     .btn-success { background: var(--success); color: white; }
     .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text-light); }
     .btn-block { width: 100%; }
     .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 16px; }
     .btn-ghost { background: transparent; color: var(--primary); }
@@ -180,114 +180,63 @@
     .status-cancelled { background: #FFE5E5; color: #CC3333; }
     .order-content { display: flex; gap: 12px; align-items: center; }
     .order-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--secondary); }
-    .order-img-placeholder {
-      width: 56px; height: 56px; border-radius: 10px; background: var(--secondary);
-      display: flex; align-items: center; justify-content: center; font-size: 22px;
-    }
+    .order-img-placeholder { width: 56px; height: 56px; border-radius: 10px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 22px; }
     .order-name { font-size: 15px; font-weight: 500; }
     .order-desc { font-size: 13px; color: var(--text-light); margin-top: 2px; }
-    .order-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .order-cancel-reason {
-      margin-top: 8px; padding: 8px 12px; background: #FFF3F3;
-      border-radius: 8px; font-size: 13px; color: var(--danger);
-    }
-    .review-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
-    .review-item:last-child { border-bottom: none; }
-    .review-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .review-avatar {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--primary-light); display: flex; align-items: center;
-      justify-content: center; font-size: 14px;
-    }
+    .order-remark { margin-top: 8px; padding: 8px 12px; background: var(--secondary); border-radius: 8px; font-size: 13px; color: var(--text); }
+    .order-remark b { color: var(--accent); }
+    .order-cancel-reason { margin-top: 8px; padding: 8px 12px; background: #FFF3F3; border-radius: 8px; font-size: 13px; color: var(--danger); }
+    .order-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .order-reviews { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px; }
+    .review-item { padding: 8px 0; }
+    .review-item + .review-item { border-top: 1px solid var(--border); }
+    .review-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .review-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 13px; overflow: hidden; }
+    .review-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .review-name { font-size: 13px; font-weight: 500; }
     .review-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
     .review-content { font-size: 14px; line-height: 1.6; }
-    .review-rating { margin-bottom: 4px; font-size: 14px; }
-    .rating { display: flex; gap: 4px; }
-    .rating-star { font-size: 24px; cursor: pointer; transition: transform 0.1s; }
-    .rating-star:active { transform: scale(1.2); }
+    .review-rating { margin-bottom: 2px; font-size: 13px; }
+    .rating { display: flex; gap: 6px; }
+    .rating-star { font-size: 30px; cursor: pointer; transition: transform 0.1s; }
+    .rating-star:active { transform: scale(1.25); }
     .detail-hero { width: 100%; height: 220px; object-fit: cover; background: var(--secondary); }
-    .detail-hero-placeholder {
-      width: 100%; height: 220px; background: var(--secondary);
-      display: flex; align-items: center; justify-content: center; font-size: 64px;
-    }
+    .detail-hero-placeholder { width: 100%; height: 220px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 64px; }
     .detail-title { font-size: 22px; font-weight: 700; margin: 16px 0 8px; }
     .detail-desc { font-size: 15px; color: var(--text-light); line-height: 1.7; }
     .profile-avatar-wrap { text-align: center; margin: 24px 0; }
-    .profile-avatar {
-      width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px;
-      background: var(--primary-light); display: flex; align-items: center;
-      justify-content: center; font-size: 36px; cursor: pointer;
-      position: relative; overflow: hidden; border: 3px solid var(--primary);
-    }
+    .profile-avatar { width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 12px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 38px; cursor: pointer; position: relative; overflow: hidden; border: 3px solid var(--primary); }
     .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .link-row { background: var(--card); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 12px 14px; margin-bottom: 10px; }
+    .link-row-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .link-row-url { font-size: 12px; color: var(--text-light); word-break: break-all; background: var(--bg); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; }
     .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
-    .empty-text { font-size: 14px; }
-    .toast {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(74,55,40,0.85); color: white; padding: 12px 24px;
-      border-radius: 20px; font-size: 14px; z-index: 10000;
-      animation: fadeInOut 2s ease; pointer-events: none;
-    }
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
-      15% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-      85% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-      100% { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
-    }
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.4); z-index: 1000;
-      display: flex; align-items: flex-end; justify-content: center;
-    }
-    .modal-content {
-      background: var(--card); width: 100%; max-width: 420px;
-      border-radius: 20px 20px 0 0; padding: 24px;
-      padding-bottom: calc(24px + env(safe-area-inset-bottom,0px));
-      animation: slideUp 0.3s ease;
-    }
+    .empty-text { font-size: 14px; line-height: 1.6; }
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(74,55,40,0.9); color: white; padding: 12px 24px; border-radius: 20px; font-size: 14px; z-index: 10000; animation: fadeInOut 2.2s ease; pointer-events: none; max-width: 80%; text-align: center; }
+    @keyframes fadeInOut { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.8);} 12%{opacity:1;transform:translate(-50%,-50%) scale(1);} 85%{opacity:1;} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.9);} }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
+    .modal-content { background: var(--card); width: 100%; max-width: 440px; border-radius: 20px 20px 0 0; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom,0px)); animation: slideUp 0.3s ease; }
     @keyframes slideUp { from { transform: translateY(100%); } }
-    .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 16px; text-align: center; }
-    .section-title {
-      font-size: 16px; font-weight: 600; margin: 20px 0 12px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .section-title::before {
-      content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px;
-    }
-    .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; background: var(--secondary); color: var(--accent); }
+    .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; text-align: center; }
+    .modal-sub { font-size: 13px; color: var(--text-light); text-align: center; margin-bottom: 16px; }
+    .section-title { font-size: 16px; font-weight: 600; margin: 20px 0 12px; display: flex; align-items: center; gap: 8px; }
+    .section-title::before { content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 12px; background: var(--secondary); color: var(--accent); }
     .tag-custom { background: var(--primary-light); color: var(--primary-dark); }
-    .fab {
-      position: fixed; bottom: 80px; right: 20px;
-      width: 52px; height: 52px; border-radius: 50%;
-      background: var(--primary); color: white; border: none;
-      box-shadow: 0 4px 16px rgba(255,139,167,0.4);
-      font-size: 24px; cursor: pointer; z-index: 50;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .fab { position: fixed; bottom: 84px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 4px 16px rgba(255,139,167,0.4); font-size: 24px; cursor: pointer; z-index: 50; display: flex; align-items: center; justify-content: center; }
     .fab:active { transform: scale(0.9); }
+    .fab-order { position: fixed; bottom: 24px; right: 20px; z-index: 50; background: var(--primary); color: #fff; border: none; border-radius: 28px; padding: 15px 26px; font-size: 16px; font-weight: 600; box-shadow: 0 6px 20px rgba(255,139,167,0.45); cursor: pointer; }
+    .fab-order:active { transform: scale(0.95); }
     .fade-enter { animation: fadeIn 0.3s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } }
     ::-webkit-scrollbar { width: 0; }
     .tab-bar { display: flex; margin-bottom: 16px; background: var(--card); border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow); }
-    .tab-item {
-      flex: 1; padding: 10px; text-align: center; font-size: 13px;
-      cursor: pointer; border: none; background: none; color: var(--text-light); transition: all 0.2s;
-    }
+    .tab-item { flex: 1; padding: 10px 4px; text-align: center; font-size: 13px; cursor: pointer; border: none; background: none; color: var(--text-light); transition: all 0.2s; }
     .tab-item.active { background: var(--primary); color: white; font-weight: 500; }
-    .heart-float {
-      position: fixed; pointer-events: none; z-index: 9999;
-      animation: heartUp 1.5s ease forwards; font-size: 24px;
-    }
-    @keyframes heartUp {
-      0% { opacity: 1; transform: translateY(0) scale(1); }
-      100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
-    }
-    .init-error {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; padding: 32px; text-align: center;
-    }
+    .heart-float { position: fixed; pointer-events: none; z-index: 9999; animation: heartUp 1.5s ease forwards; font-size: 24px; }
+    @keyframes heartUp { 0%{opacity:1;transform:translateY(0) scale(1);} 100%{opacity:0;transform:translateY(-120px) scale(1.5);} }
+    .init-error { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px; text-align: center; }
     .init-error-icon { font-size: 48px; margin-bottom: 16px; }
     .init-error-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
     .init-error-desc { font-size: 14px; color: var(--text-light); line-height: 1.6; }
@@ -308,43 +257,46 @@
 
   <div class="toast" v-if="toast" :key="toastKey">{{ toast }}</div>
 
-  <!-- Role Selection -->
-  <div class="role-page" v-if="!initError && !currentRole">
-    <div class="role-title">小厨房点餐 🍳</div>
-    <div class="role-subtitle">今天想吃什么，告诉我~</div>
-    <div class="role-cards">
-      <div class="role-card" @click="selectRole('provider')">
-        <div class="role-avatar-placeholder">
-          <img v-if="settings.providerAvatar" :src="settings.providerAvatar">
-          <span v-else>👨‍🍳</span>
-        </div>
-        <div class="role-name">{{ settings.providerName || '朱大能' }}</div>
-        <div class="role-desc">服务方·负责做菜</div>
-      </div>
-      <div class="role-card" @click="selectRole('customer')">
-        <div class="role-avatar-placeholder">
-          <img v-if="settings.customerAvatar" :src="settings.customerAvatar">
-          <span v-else>👸</span>
-        </div>
-        <div class="role-name">{{ settings.customerName || '林小赖' }}</div>
-        <div class="role-desc">顾客·负责点菜</div>
-      </div>
+  <!-- Entry -->
+  <div class="entry-page" v-if="!initError && !currentRole">
+    <div class="entry-title">小厨房点餐 🍳</div>
+    <div class="entry-subtitle">请选择你的身份进入<br>（进入后会记住，下次自动识别）</div>
+    <div class="entry-cards">
+      <a class="entry-card" :href="chefLink">
+        <div class="entry-avatar"><img v-if="settings.providerAvatar" :src="settings.providerAvatar"><span v-else>👨‍🍳</span></div>
+        <div class="entry-name">{{ settings.providerName || '朱大能' }}</div>
+        <div class="entry-desc">服务方·做菜</div>
+      </a>
+      <a class="entry-card" :href="guestLink">
+        <div class="entry-avatar"><img v-if="settings.customerAvatar" :src="settings.customerAvatar"><span v-else>👸</span></div>
+        <div class="entry-name">{{ settings.customerName || '林小赖' }}</div>
+        <div class="entry-desc">顾客·点菜</div>
+      </a>
     </div>
   </div>
 
-  <!-- Main App -->
+  <!-- Main -->
   <div v-if="!initError && currentRole">
-    <!-- MENU LIST -->
+    <!-- MENU -->
     <div v-if="page==='menu'" class="fade-enter">
       <div class="top-bar">
         <div class="top-bar-title">📋 菜单</div>
         <button class="top-bar-action" @click="goProfile">{{ myName }} ⚙️</button>
       </div>
       <div class="page">
+        <div class="custom-entry" v-if="!isProvider" @click="goCustomOrder">
+          <div class="custom-entry-icon">🍜</div>
+          <div class="custom-entry-text">
+            <b>定制点餐</b>
+            <div>菜单里没有想吃的？告诉大厨你想要什么</div>
+          </div>
+          <div class="custom-entry-arrow">›</div>
+        </div>
+
         <div v-if="menuItems.length===0" class="empty-state">
           <div class="empty-icon">🍽️</div>
           <div class="empty-text" v-if="isProvider">还没有菜品哦，点击右下角添加~</div>
-          <div class="empty-text" v-else>菜单空空如也，催催大厨吧~</div>
+          <div class="empty-text" v-else>菜单还是空的，催催大厨吧~<br>或用上方「定制点餐」直接下单</div>
         </div>
         <div class="card" v-if="menuItems.length>0">
           <div class="menu-item" v-for="item in menuItems" :key="item.id" @click="goMenuDetail(item)">
@@ -369,8 +321,7 @@
       <div class="top-bar">
         <button class="top-bar-back" @click="goBack">←</button>
         <div class="top-bar-title">菜品详情</div>
-        <button class="top-bar-action" v-if="!isProvider" @click="orderFromDetail">点这道菜</button>
-        <span v-else></span>
+        <span style="width:32px;"></span>
       </div>
       <div>
         <img v-if="currentItem.image" :src="currentItem.image" class="detail-hero">
@@ -386,8 +337,8 @@
             <div class="card-body" v-else>
               <div class="review-item" v-for="r in currentItemReviews" :key="r.id">
                 <div class="review-header">
-                  <div class="review-avatar">{{ r.from_role==='provider' ? '👨‍🍳' : '👸' }}</div>
-                  <div class="review-name">{{ r.from_role==='provider' ? settings.providerName : settings.customerName }}</div>
+                  <div class="review-avatar"><img v-if="avatarOf(r.from_role)" :src="avatarOf(r.from_role)"><span v-else>{{ r.from_role==='provider'?'👨‍🍳':'👸' }}</span></div>
+                  <div class="review-name">{{ nameOf(r.from_role) }}</div>
                   <div class="review-time">{{ formatTime(r.created_at) }}</div>
                 </div>
                 <div class="review-rating">{{ '⭐'.repeat(r.rating) }}</div>
@@ -397,6 +348,7 @@
           </div>
         </div>
       </div>
+      <button class="fab-order" v-if="!isProvider" @click="openOrderModal(currentItem)">点这道菜 🛎️</button>
     </div>
 
     <!-- ADD/EDIT MENU -->
@@ -404,7 +356,7 @@
       <div class="top-bar">
         <button class="top-bar-back" @click="goBack">←</button>
         <div class="top-bar-title">{{ editingItem ? '编辑菜品' : '新增菜品' }}</div>
-        <span></span>
+        <span style="width:32px;"></span>
       </div>
       <div class="page">
         <div class="form-group">
@@ -415,10 +367,7 @@
           <label class="form-label">图片</label>
           <div class="img-upload" @click="$refs.menuImgInput.click()">
             <img v-if="menuForm.imagePreview" :src="menuForm.imagePreview">
-            <template v-else>
-              <div class="img-upload-icon">📷</div>
-              <div class="img-upload-text">点击上传菜品图片</div>
-            </template>
+            <template v-else><div class="img-upload-icon">📷</div><div class="img-upload-text">点击上传菜品图片</div></template>
             <input type="file" ref="menuImgInput" accept="image/*" @change="onMenuImageChange">
           </div>
         </div>
@@ -426,9 +375,7 @@
           <label class="form-label">说明</label>
           <textarea class="form-textarea" v-model="menuForm.description" placeholder="食材、口味、烹饪方式..."></textarea>
         </div>
-        <button class="btn btn-primary btn-block" @click="saveMenuItem" :disabled="!menuForm.name">
-          {{ editingItem ? '保存修改' : '添加到菜单' }} ✨
-        </button>
+        <button class="btn btn-primary btn-block" @click="saveMenuItem" :disabled="!menuForm.name">{{ editingItem ? '保存修改' : '添加到菜单' }} ✨</button>
       </div>
     </div>
 
@@ -436,8 +383,7 @@
     <div v-if="page==='orders'" class="fade-enter">
       <div class="top-bar">
         <div class="top-bar-title">📝 订单</div>
-        <button class="top-bar-action" v-if="!isProvider" @click="goCustomOrder">定制点餐</button>
-        <span v-else></span>
+        <span style="width:32px;"></span>
       </div>
       <div class="page">
         <div class="tab-bar">
@@ -465,18 +411,36 @@
                   {{ order.type==='custom' ? order.custom_name : order.menu_item_name }}
                   <span class="tag tag-custom" v-if="order.type==='custom'" style="margin-left:6px;">定制</span>
                 </div>
-                <div class="order-desc">{{ order.type==='custom' ? order.custom_desc : '' }}</div>
+                <div class="order-desc" v-if="order.type==='custom' && order.custom_desc">{{ order.custom_desc }}</div>
               </div>
             </div>
-            <div class="order-cancel-reason" v-if="order.status==='cancelled'&&order.cancel_reason">取消原因：{{ order.cancel_reason }}</div>
-            <div class="order-actions" v-if="isProvider&&order.status==='pending'">
-              <button class="btn btn-sm btn-success" @click="confirmOrder(order)">✅ 接单</button>
-              <button class="btn btn-sm btn-danger" @click="showCancelModal(order)">❌ 取消</button>
+            <div class="order-remark" v-if="order.type==='menu' && order.custom_desc"><b>备注：</b>{{ order.custom_desc }}</div>
+            <div class="order-cancel-reason" v-if="order.status==='cancelled'">
+              已取消{{ order.cancel_reason ? '：'+order.cancel_reason : '' }}
             </div>
-            <div class="order-actions" v-if="order.status==='confirmed'&&!hasReviewed(order)">
-              <button class="btn btn-sm btn-secondary" @click="goReview(order)">💬 写评价</button>
+            <div class="order-actions">
+              <template v-if="order.status==='pending'">
+                <button v-if="isProvider" class="btn btn-sm btn-success" @click="confirmOrder(order)">✅ 接单</button>
+                <button v-if="isProvider" class="btn btn-sm btn-danger" @click="openCancelModal(order)">❌ 拒绝</button>
+                <button v-if="!isProvider" class="btn btn-sm btn-outline" @click="openCancelModal(order)">↩️ 撤回</button>
+              </template>
+              <template v-if="order.status==='confirmed'">
+                <button class="btn btn-sm btn-secondary" v-if="!hasReviewed(order)" @click="goReview(order)">💬 写评价</button>
+                <button class="btn btn-sm btn-outline" @click="openCancelModal(order)">↩️ 取消订单</button>
+              </template>
             </div>
-            <div v-if="order.status==='confirmed'&&hasReviewed(order)" style="margin-top:8px;font-size:12px;color:var(--success);">✅ 已评价</div>
+            <div v-if="order.status==='confirmed' && hasReviewed(order)" style="margin-top:6px;font-size:12px;color:var(--success);">✅ 你已评价</div>
+            <div class="order-reviews" v-if="reviewsOf(order.id).length>0">
+              <div class="review-item" v-for="r in reviewsOf(order.id)" :key="r.id">
+                <div class="review-header">
+                  <div class="review-avatar"><img v-if="avatarOf(r.from_role)" :src="avatarOf(r.from_role)"><span v-else>{{ r.from_role==='provider'?'👨‍🍳':'👸' }}</span></div>
+                  <div class="review-name">{{ nameOf(r.from_role) }}</div>
+                  <div class="review-time">{{ formatTime(r.created_at) }}</div>
+                </div>
+                <div class="review-rating">{{ '⭐'.repeat(r.rating) }}</div>
+                <div class="review-content">{{ r.content }}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -487,7 +451,7 @@
       <div class="top-bar">
         <button class="top-bar-back" @click="goBack">←</button>
         <div class="top-bar-title">定制点餐 ✍️</div>
-        <span></span>
+        <span style="width:32px;"></span>
       </div>
       <div class="page">
         <p style="font-size:14px;color:var(--text-light);margin-bottom:20px;">菜单里没有想吃的？告诉大厨你想要什么~</p>
@@ -499,16 +463,13 @@
           <label class="form-label">参考图片（选填）</label>
           <div class="img-upload" @click="$refs.customImgInput.click()">
             <img v-if="customForm.imagePreview" :src="customForm.imagePreview">
-            <template v-else>
-              <div class="img-upload-icon">📷</div>
-              <div class="img-upload-text">上传参考图</div>
-            </template>
+            <template v-else><div class="img-upload-icon">📷</div><div class="img-upload-text">上传参考图</div></template>
             <input type="file" ref="customImgInput" accept="image/*" @change="onCustomImageChange">
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">备注说明（选填）</label>
-          <textarea class="form-textarea" v-model="customForm.description" placeholder="口味偏好、食材要求等..."></textarea>
+          <textarea class="form-textarea" v-model="customForm.description" placeholder="可备注口味偏好、忌口、送达时间等要求"></textarea>
         </div>
         <button class="btn btn-primary btn-block" @click="submitCustomOrder" :disabled="!customForm.name">提交点餐 🛎️</button>
       </div>
@@ -519,7 +480,7 @@
       <div class="top-bar">
         <button class="top-bar-back" @click="goBack">←</button>
         <div class="top-bar-title">写评价 💬</div>
-        <span></span>
+        <span style="width:32px;"></span>
       </div>
       <div class="page">
         <div class="card" style="padding:16px;margin-bottom:20px;">
@@ -544,7 +505,7 @@
       <div class="top-bar">
         <button class="top-bar-back" @click="goBack">←</button>
         <div class="top-bar-title">个人设置</div>
-        <span></span>
+        <span style="width:32px;"></span>
       </div>
       <div class="page">
         <div class="profile-avatar-wrap">
@@ -559,41 +520,68 @@
           <label class="form-label">昵称</label>
           <input class="form-input" v-model="profileForm.name" placeholder="输入昵称">
         </div>
-        <button class="btn btn-primary btn-block" @click="saveProfile" :disabled="!profileForm.name" style="margin-top:20px;">保存 💕</button>
-        <button class="btn btn-ghost btn-block" @click="switchRole" style="margin-top:12px;">切换身份</button>
+        <button class="btn btn-primary btn-block" @click="saveProfile" :disabled="!profileForm.name">保存 💕</button>
+
+        <div class="section-title" style="margin-top:28px;">专属链接</div>
+        <div class="link-row">
+          <div class="link-row-label">👨‍🍳 {{ settings.providerName || '朱大能' }}（服务方）</div>
+          <div class="link-row-url">{{ chefLink }}</div>
+          <button class="btn btn-sm btn-secondary" @click="copyLink(chefLink)">复制链接</button>
+        </div>
+        <div class="link-row">
+          <div class="link-row-label">👸 {{ settings.customerName || '林小赖' }}（顾客）</div>
+          <div class="link-row-url">{{ guestLink }}</div>
+          <button class="btn btn-sm btn-secondary" @click="copyLink(guestLink)">复制链接</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.6;">把对方的专属链接发给 TA，各自打开即可。链接会自动记住身份，无需手动切换。</p>
       </div>
     </div>
 
     <!-- Bottom Nav -->
     <div class="bottom-nav" v-if="showNav">
-      <button class="nav-item" :class="{active:page==='menu'||page==='menu-detail'}" @click="goPage('menu')">
+      <button class="nav-item" :class="{active: page==='menu'||page==='menu-detail'}" @click="goPage('menu')">
         <span class="nav-icon">📋</span><span class="nav-label">菜单</span>
       </button>
-      <button class="nav-item" :class="{active:page==='orders'}" @click="goPage('orders')">
+      <button class="nav-item" :class="{active: page==='orders'}" @click="goPage('orders')">
         <span class="nav-icon">📝</span><span class="nav-label">订单</span>
-        <span class="nav-badge" v-if="pendingCount&&isProvider">{{ pendingCount }}</span>
+        <span class="nav-badge" v-if="unreadCount>0">{{ unreadCount>99?'99+':unreadCount }}</span>
       </button>
-      <button class="nav-item" :class="{active:page==='profile'}" @click="goProfile">
+      <button class="nav-item" :class="{active: page==='profile'}" @click="goProfile">
         <span class="nav-icon">{{ isProvider?'👨‍🍳':'👸' }}</span><span class="nav-label">我的</span>
       </button>
     </div>
 
-    <!-- Cancel Modal -->
-    <div class="modal-overlay" v-if="showCancelModalFlag" @click.self="showCancelModalFlag=false">
+    <!-- Order confirm modal -->
+    <div class="modal-overlay" v-if="showOrderModal" @click.self="showOrderModal=false">
       <div class="modal-content">
-        <div class="modal-title">取消原因</div>
+        <div class="modal-title">确认下单</div>
+        <div class="modal-sub">「{{ orderingItem.name }}」</div>
         <div class="form-group">
-          <textarea class="form-textarea" v-model="cancelReason" placeholder="告诉TA为什么取消吧~（选填）" style="min-height:80px;"></textarea>
+          <textarea class="form-textarea" v-model="orderRemark" placeholder="可备注口味偏好、忌口、送达时间等要求（选填）"></textarea>
         </div>
         <div style="display:flex;gap:12px;">
-          <button class="btn btn-secondary" style="flex:1;" @click="showCancelModalFlag=false">再想想</button>
-          <button class="btn btn-danger" style="flex:1;" @click="doCancelOrder">确认取消</button>
+          <button class="btn btn-outline" style="flex:1;" @click="showOrderModal=false">再想想</button>
+          <button class="btn btn-primary" style="flex:1.4;" @click="confirmPlaceOrder">确认下单 🛎️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel modal -->
+    <div class="modal-overlay" v-if="showCancelModalFlag" @click.self="showCancelModalFlag=false">
+      <div class="modal-content">
+        <div class="modal-title">{{ cancelTitle }}</div>
+        <div class="modal-sub">{{ cancelSub }}</div>
+        <div class="form-group">
+          <textarea class="form-textarea" v-model="cancelReason" :placeholder="cancelPlaceholder" style="min-height:80px;"></textarea>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-outline" style="flex:1;" @click="showCancelModalFlag=false">再想想</button>
+          <button class="btn btn-danger" style="flex:1;" @click="doCancelOrder">{{ cancelConfirmText }}</button>
         </div>
       </div>
     </div>
   </div>
 </div>
-
 
 <script>
 // ============================================
@@ -602,7 +590,6 @@
 const SUPABASE_URL = 'https://ofexcddxznquikdllsqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mZXhjZGR4em5xdWlrZGxsc3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDc2NzAsImV4cCI6MjEwMzE4MzY3MH0.lYShh86M8nf6TBs20HFNdBILY6gv6dhcxNQjKPgXdVk';
 
-// 初始化（等待 Vue 与 Supabase 两个 CDN 脚本都就绪后再启动，避免加载时序竞态）
 let db;
 
 function bootApp() {
@@ -616,7 +603,21 @@ function bootApp() {
     const initError = ref(false);
     const toast = ref('');
     const toastKey = ref(0);
-    const currentRole = ref(localStorage.getItem('couple_order_role') || '');
+
+    function roleFromUrl() {
+      const p = new URLSearchParams(location.search).get('role');
+      if (p === 'chef') return 'provider';
+      if (p === 'guest') return 'customer';
+      return '';
+    }
+    const urlRole = roleFromUrl();
+    if (urlRole) localStorage.setItem('couple_order_role', urlRole);
+    const currentRole = ref(urlRole || localStorage.getItem('couple_order_role') || '');
+
+    const BASE = location.origin + location.pathname;
+    const chefLink = BASE + '?role=chef';
+    const guestLink = BASE + '?role=guest';
+
     const page = ref('menu');
     const pageHistory = ref([]);
 
@@ -627,15 +628,22 @@ function bootApp() {
     const currentItem = ref({});
     const currentItemReviews = ref([]);
     const orders = ref([]);
+    const allReviews = ref([]);
     const orderFilter = ref('all');
     const customForm = reactive({ name: '', description: '', imagePreview: '', imageFile: null });
+
+    const showOrderModal = ref(false);
+    const orderingItem = ref({});
+    const orderRemark = ref('');
+
     const showCancelModalFlag = ref(false);
     const cancelReason = ref('');
     const cancellingOrder = ref(null);
+
     const reviewingOrder = ref({});
     const reviewForm = reactive({ rating: 0, content: '' });
-    const myReviews = ref([]);
     const profileForm = reactive({ name: '' });
+    const unreadTick = ref(0);
 
     const isProvider = computed(() => currentRole.value === 'provider');
     const myName = computed(() => isProvider.value ? settings.providerName : settings.customerName);
@@ -644,37 +652,53 @@ function bootApp() {
     const filteredOrders = computed(() => orderFilter.value === 'all' ? orders.value : orders.value.filter(o => o.status === orderFilter.value));
     const pendingCount = computed(() => orders.value.filter(o => o.status === 'pending').length);
 
-    function showToast(msg) { toast.value = msg; toastKey.value++; setTimeout(() => { toast.value = ''; }, 2000); }
+    const unreadCount = computed(() => {
+      unreadTick.value;
+      const snap = loadSeen();
+      const so = snap.orders || {};
+      const sr = snap.reviews || [];
+      let c = 0;
+      orders.value.forEach(o => {
+        if (!(o.id in so)) c++;
+        else if (so[o.id] !== o.status) c++;
+      });
+      allReviews.value.forEach(r => {
+        if (r.from_role !== currentRole.value && sr.indexOf(r.id) === -1) c++;
+      });
+      return c;
+    });
 
-    // Navigation
-    function selectRole(role) { currentRole.value = role; localStorage.setItem('couple_order_role', role); loadData(); }
-    function switchRole() { currentRole.value = ''; localStorage.removeItem('couple_order_role'); page.value = 'menu'; }
-    function goPage(p) { pageHistory.value = []; page.value = p; if (p==='orders') loadOrders(); if (p==='menu') loadMenu(); }
+    function showToast(msg) { toast.value = msg; toastKey.value++; setTimeout(() => { toast.value = ''; }, 2200); }
+    function nameOf(role) { return role === 'provider' ? settings.providerName : settings.customerName; }
+    function avatarOf(role) { return role === 'provider' ? settings.providerAvatar : settings.customerAvatar; }
+    function nowISO() { return new Date().toISOString(); }
+
+    function goPage(p) { pageHistory.value = []; page.value = p; if (p==='orders') { loadOrders().then(markOrdersSeen); loadAllReviews(); } if (p==='menu') loadMenu(); }
     function goBack() { page.value = pageHistory.value.length > 0 ? pageHistory.value.pop() : 'menu'; }
-    function goProfile() { pageHistory.value.push(page.value); page.value = 'profile'; profileForm.name = myName.value; }
+    function goProfile() { pageHistory.value.push(page.value === 'profile' ? 'menu' : page.value); page.value = 'profile'; profileForm.name = myName.value; }
     function goAddMenu() { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = null; Object.assign(menuForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
     function editMenuItem(item) { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = item; Object.assign(menuForm, { name:item.name, description:item.description||'', imagePreview:item.image||'', imageFile:null }); }
     function goMenuDetail(item) { pageHistory.value.push('menu'); page.value = 'menu-detail'; currentItem.value = item; loadReviewsForItem(item.id); }
-    function goCustomOrder() { pageHistory.value.push('orders'); page.value = 'custom-order'; Object.assign(customForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
+    function goCustomOrder() { pageHistory.value.push('menu'); page.value = 'custom-order'; Object.assign(customForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
     function goReview(order) { pageHistory.value.push('orders'); page.value = 'review'; reviewingOrder.value = order; reviewForm.rating = 0; reviewForm.content = ''; }
 
-    // === Data ===
     async function loadSettings() {
-      const { data } = await db.from('settings').select('*').eq('key', 'main').maybeSingle();
-      if (data) { settings.id = data.id; settings.providerName = data.provider_name||'朱大能'; settings.providerAvatar = data.provider_avatar||''; settings.customerName = data.customer_name||'林小赖'; settings.customerAvatar = data.customer_avatar||''; }
+      const { data } = await db.from('settings').select('*').eq('key','main').maybeSingle();
+      if (data) { settings.id=data.id; settings.providerName=data.provider_name||'朱大能'; settings.providerAvatar=data.provider_avatar||''; settings.customerName=data.customer_name||'林小赖'; settings.customerAvatar=data.customer_avatar||''; }
     }
     async function saveSettings() {
       const payload = { key:'main', provider_name:settings.providerName, provider_avatar:settings.providerAvatar, customer_name:settings.customerName, customer_avatar:settings.customerAvatar };
       if (settings.id) { await db.from('settings').update(payload).eq('id', settings.id); }
-      else { const { data } = await db.from('settings').insert(payload).select().single(); if(data) settings.id = data.id; }
+      else { const { data } = await db.from('settings').insert(payload).select().single(); if(data) settings.id=data.id; }
     }
+
     async function loadMenu() {
-      const { data } = await db.from('menu_items').select('*').order('sort_order', { ascending: false });
+      const { data } = await db.from('menu_items').select('*').order('sort_order', { ascending:false });
       menuItems.value = data || [];
     }
     async function saveMenuItem() {
       if (!menuForm.name) return;
-      loading.value = true; loadingText.value = '保存中...';
+      loading.value=true; loadingText.value='保存中...';
       try {
         let imageUrl = menuForm.imagePreview;
         if (menuForm.imageFile) imageUrl = await uploadImage(menuForm.imageFile);
@@ -686,86 +710,122 @@ function bootApp() {
           showToast('菜品已上架 🎉');
         }
         await loadMenu(); goBack();
-      } catch(e) { showToast('保存失败'); console.error(e); }
-      loading.value = false;
+      } catch(e){ showToast('保存失败'); console.error(e); }
+      loading.value=false;
     }
     async function deleteMenuItem(item) {
       if (!confirm(`确定删除「${item.name}」吗？`)) return;
       await db.from('menu_items').delete().eq('id', item.id);
       await loadMenu(); showToast('已删除');
     }
+
     async function loadOrders() {
-      const { data } = await db.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
+      const { data } = await db.from('orders').select('*').order('created_at', { ascending:false }).limit(200);
       orders.value = data || [];
     }
-    async function orderFromDetail() {
-      loading.value = true; loadingText.value = '下单中...';
+    function seenKey() { return 'seen_snap_' + currentRole.value; }
+    function loadSeen() { try { return JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch(e){ return {}; } }
+    function markOrdersSeen() {
+      const snap = { orders:{}, reviews:[] };
+      orders.value.forEach(o => { snap.orders[o.id] = o.status; });
+      allReviews.value.forEach(r => { snap.reviews.push(r.id); });
+      localStorage.setItem(seenKey(), JSON.stringify(snap));
+      unreadTick.value++;
+    }
+    function openOrderModal(item) { orderingItem.value = item; orderRemark.value = ''; showOrderModal.value = true; }
+    async function confirmPlaceOrder() {
+      showOrderModal.value = false;
+      loading.value=true; loadingText.value='下单中...';
       try {
-        await db.from('orders').insert({ type:'menu', menu_item_id:currentItem.value.id, menu_item_name:currentItem.value.name, menu_item_image:currentItem.value.image||'', status:'pending' });
-        showToast('已下单，等大厨接单~ 🛎️'); floatHeart();
-      } catch(e) { showToast('下单失败'); }
-      loading.value = false;
+        await db.from('orders').insert({ type:'menu', menu_item_id:orderingItem.value.id, menu_item_name:orderingItem.value.name, menu_item_image:orderingItem.value.image||'', custom_desc:orderRemark.value||'', status:'pending' });
+        showToast('已下单，等大厨接单~ 🛎️'); floatHeart(); await loadOrders(); markOrdersSeen();
+      } catch(e){ showToast('下单失败'); console.error(e); }
+      loading.value=false;
     }
     async function submitCustomOrder() {
       if (!customForm.name) return;
-      loading.value = true; loadingText.value = '提交中...';
+      loading.value=true; loadingText.value='提交中...';
       try {
-        let imageUrl = '';
+        let imageUrl='';
         if (customForm.imageFile) imageUrl = await uploadImage(customForm.imageFile);
         await db.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending' });
-        showToast('定制点餐已提交 ✨'); goBack(); await loadOrders();
-      } catch(e) { showToast('提交失败'); }
-      loading.value = false;
+        showToast('定制点餐已提交 ✨'); goBack(); await loadOrders(); markOrdersSeen();
+      } catch(e){ showToast('提交失败'); console.error(e); }
+      loading.value=false;
     }
     async function confirmOrder(order) {
       await db.from('orders').update({ status:'confirmed' }).eq('id', order.id);
-      showToast('已接单！开始准备~ 🍳'); floatHeart(); await loadOrders();
+      showToast('已接单！开始准备~ 🍳'); floatHeart(); await loadOrders(); markOrdersSeen();
     }
-    function showCancelModal(order) { cancellingOrder.value = order; cancelReason.value = ''; showCancelModalFlag.value = true; }
+    const cancelTitle = computed(() => {
+      const o = cancellingOrder.value; if(!o) return '取消订单';
+      if (o.status==='pending') return isProvider.value ? '拒绝这单' : '撤回订单';
+      return '取消订单';
+    });
+    const cancelSub = computed(() => {
+      const o = cancellingOrder.value; if(!o) return '';
+      return '「' + (o.type==='custom'?o.custom_name:o.menu_item_name) + '」';
+    });
+    const cancelPlaceholder = computed(() => {
+      const o = cancellingOrder.value; if(!o) return '填写原因（选填）';
+      if (o.status==='pending' && isProvider.value) return '告诉 TA 为什么不能做~（选填）';
+      if (o.status==='pending' && !isProvider.value) return '不想吃了或想换一个？说明一下（选填）';
+      return '说明取消原因，让 TA 知道~（选填）';
+    });
+    const cancelConfirmText = computed(() => {
+      const o = cancellingOrder.value; if(!o) return '确认取消';
+      if (o.status==='pending') return isProvider.value ? '确认拒绝' : '确认撤回';
+      return '确认取消';
+    });
+    function openCancelModal(order) { cancellingOrder.value = order; cancelReason.value=''; showCancelModalFlag.value=true; }
     async function doCancelOrder() {
-      if (!cancellingOrder.value) return;
-      await db.from('orders').update({ status:'cancelled', cancel_reason:cancelReason.value||'' }).eq('id', cancellingOrder.value.id);
-      showCancelModalFlag.value = false; showToast('已取消'); await loadOrders();
+      const o = cancellingOrder.value; if(!o) return;
+      await db.from('orders').update({ status:'cancelled', cancel_reason:cancelReason.value||'' }).eq('id', o.id);
+      showCancelModalFlag.value=false; showToast('已取消'); await loadOrders(); markOrdersSeen();
     }
+
     async function loadReviewsForItem(menuItemId) {
-      const { data } = await db.from('reviews').select('*').eq('menu_item_id', menuItemId).order('created_at', { ascending: false });
+      const { data } = await db.from('reviews').select('*').eq('menu_item_id', menuItemId).order('created_at', { ascending:false });
       currentItemReviews.value = data || [];
     }
-    async function loadMyReviews() {
-      const { data } = await db.from('reviews').select('order_id,from_role').eq('from_role', currentRole.value);
-      myReviews.value = data || [];
+    async function loadAllReviews() {
+      const { data } = await db.from('reviews').select('*').order('created_at', { ascending:false }).limit(300);
+      allReviews.value = data || [];
     }
-    function hasReviewed(order) { return myReviews.value.some(r => r.order_id === order.id); }
+    function reviewsOf(orderId) { return allReviews.value.filter(r => r.order_id === orderId); }
+    function hasReviewed(order) { return allReviews.value.some(r => r.order_id === order.id && r.from_role === currentRole.value); }
     async function submitReview() {
       if (!reviewForm.content || !reviewForm.rating) return;
-      loading.value = true; loadingText.value = '提交评价...';
+      loading.value=true; loadingText.value='提交评价...';
       try {
-        await db.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||reviewingOrder.value.id, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
-        showToast('评价已提交 💕'); myReviews.value.push({ order_id:reviewingOrder.value.id, from_role:currentRole.value }); goBack();
-      } catch(e) { showToast('提交失败'); }
-      loading.value = false;
+        await db.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||null, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
+        showToast('评价已提交 💕'); await loadAllReviews(); markOrdersSeen(); goBack();
+      } catch(e){ showToast('提交失败'); console.error(e); }
+      loading.value=false;
     }
+
     async function saveProfile() {
       if (!profileForm.name) return;
-      if (isProvider.value) settings.providerName = profileForm.name; else settings.customerName = profileForm.name;
+      if (isProvider.value) settings.providerName=profileForm.name; else settings.customerName=profileForm.name;
       await saveSettings(); showToast('保存成功 💕'); goBack();
     }
     async function onAvatarChange(e) {
-      const file = e.target.files[0]; if (!file) return;
-      loading.value = true; loadingText.value = '上传头像...';
-      try {
-        const url = await uploadImage(file);
-        if (isProvider.value) settings.providerAvatar = url; else settings.customerAvatar = url;
-        await saveSettings(); showToast('头像已更新 ✨');
-      } catch(e) { showToast('上传失败'); }
-      loading.value = false;
+      const file=e.target.files[0]; if(!file) return;
+      loading.value=true; loadingText.value='上传头像...';
+      try { const url=await uploadImage(file); if(isProvider.value) settings.providerAvatar=url; else settings.customerAvatar=url; await saveSettings(); showToast('头像已更新 ✨'); }
+      catch(e){ showToast('上传失败'); }
+      loading.value=false;
     }
-    function onMenuImageChange(e) { const f = e.target.files[0]; if(!f) return; menuForm.imageFile=f; menuForm.imagePreview=URL.createObjectURL(f); }
-    function onCustomImageChange(e) { const f = e.target.files[0]; if(!f) return; customForm.imageFile=f; customForm.imagePreview=URL.createObjectURL(f); }
+    function copyLink(url) {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(url).then(()=>showToast('链接已复制 📋')).catch(()=>showToast('复制失败，请长按选择')); }
+      else { showToast('请长按链接手动复制'); }
+    }
 
+    function onMenuImageChange(e){ const f=e.target.files[0]; if(!f) return; menuForm.imageFile=f; menuForm.imagePreview=URL.createObjectURL(f); }
+    function onCustomImageChange(e){ const f=e.target.files[0]; if(!f) return; customForm.imageFile=f; customForm.imagePreview=URL.createObjectURL(f); }
     async function uploadImage(file) {
-      const ext = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const ext=file.name.split('.').pop();
+      const fileName=`${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
       const { error } = await db.storage.from('images').upload(fileName, file, { cacheControl:'3600', upsert:false });
       if (error) throw error;
       const { data } = db.storage.from('images').getPublicUrl(fileName);
@@ -774,45 +834,57 @@ function bootApp() {
 
     function formatTime(dateStr) {
       if (!dateStr) return '';
-      const d = new Date(dateStr), now = new Date(), diff = now - d;
-      if (diff < 60000) return '刚刚';
-      if (diff < 3600000) return Math.floor(diff/60000) + '分钟前';
-      if (diff < 86400000) return Math.floor(diff/3600000) + '小时前';
+      const d=new Date(dateStr), now=new Date(), diff=now-d;
+      if (diff<60000) return '刚刚';
+      if (diff<3600000) return Math.floor(diff/60000)+'分钟前';
+      if (diff<86400000) return Math.floor(diff/3600000)+'小时前';
       return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     }
-    function statusText(s) { return {pending:'待处理',confirmed:'已确认',cancelled:'已取消'}[s]||s; }
-    function getOrderImage(order) { return order.type==='custom' ? order.custom_image : order.menu_item_image; }
+    function statusText(s){ return {pending:'待处理',confirmed:'已确认',cancelled:'已取消'}[s]||s; }
+    function getOrderImage(order){ return order.type==='custom' ? order.custom_image : order.menu_item_image; }
     function floatHeart() {
-      const el = document.createElement('div'); el.className = 'heart-float';
-      el.textContent = ['💕','❤️','🧡','💗'][Math.floor(Math.random()*4)];
-      el.style.left = (Math.random()*60+20)+'%'; el.style.top = '60%';
-      document.body.appendChild(el); setTimeout(() => el.remove(), 1500);
+      const el=document.createElement('div'); el.className='heart-float';
+      el.textContent=['💕','❤️','🧡','💗'][Math.floor(Math.random()*4)];
+      el.style.left=(Math.random()*60+20)+'%'; el.style.top='60%';
+      document.body.appendChild(el); setTimeout(()=>el.remove(),1500);
     }
 
     async function loadData() {
-      loading.value = true; loadingText.value = '加载中...';
-      try { await loadSettings(); await loadMenu(); await loadOrders(); await loadMyReviews(); }
-      catch(e) { console.error('Init error:', e); initError.value = true; }
-      loading.value = false;
+      loading.value=true; loadingText.value='加载中...';
+      try { await loadSettings(); await loadMenu(); await loadOrders(); await loadAllReviews(); if (!localStorage.getItem(seenKey())) markOrdersSeen(); }
+      catch(e){ console.error('Init error:', e); initError.value=true; }
+      loading.value=false;
     }
 
     onMounted(async () => {
-      if (SUPABASE_URL === 'YOUR_SUPABASE_URL') { loading.value = false; initError.value = true; return; }
-      if (currentRole.value) { await loadData(); } else { try { await loadSettings(); } catch(e){} loading.value = false; }
-      setInterval(async () => { if (currentRole.value && !loading.value) { await loadOrders(); if (page.value==='menu') await loadMenu(); } }, 30000);
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL') { loading.value=false; initError.value=true; return; }
+      if (currentRole.value) { await loadData(); }
+      else { try { await loadSettings(); } catch(e){} loading.value=false; }
+      setInterval(async () => {
+        if (currentRole.value && !loading.value) {
+          await loadOrders(); await loadAllReviews();
+          if (page.value==='menu') await loadMenu();
+          if (page.value==='orders') markOrdersSeen();
+          unreadTick.value++;
+        }
+      }, 20000);
     });
 
     return {
       loading, loadingText, initError, toast, toastKey, currentRole, page, settings,
+      chefLink, guestLink,
       menuItems, editingItem, menuForm, currentItem, currentItemReviews,
-      orders, orderFilter, customForm, showCancelModalFlag, cancelReason,
-      reviewingOrder, reviewForm, myReviews, profileForm,
-      isProvider, myName, myAvatar, showNav, filteredOrders, pendingCount,
-      selectRole, switchRole, goPage, goBack, goProfile, goAddMenu,
-      editMenuItem, goMenuDetail, goCustomOrder, goReview,
-      saveMenuItem, deleteMenuItem, orderFromDetail, submitCustomOrder,
-      confirmOrder, showCancelModal, doCancelOrder,
-      hasReviewed, submitReview, saveProfile, onAvatarChange,
+      orders, allReviews, orderFilter, customForm,
+      showOrderModal, orderingItem, orderRemark,
+      showCancelModalFlag, cancelReason, cancelTitle, cancelSub, cancelPlaceholder, cancelConfirmText,
+      reviewingOrder, reviewForm, profileForm,
+      isProvider, myName, myAvatar, showNav, filteredOrders, pendingCount, unreadCount,
+      nameOf, avatarOf, reviewsOf, hasReviewed,
+      goPage, goBack, goProfile, goAddMenu, editMenuItem, goMenuDetail, goCustomOrder, goReview,
+      saveMenuItem, deleteMenuItem,
+      openOrderModal, confirmPlaceOrder, submitCustomOrder, confirmOrder,
+      openCancelModal, doCancelOrder,
+      submitReview, saveProfile, onAvatarChange, copyLink,
       onMenuImageChange, onCustomImageChange,
       formatTime, statusText, getOrderImage, floatHeart,
     };
@@ -820,15 +892,13 @@ function bootApp() {
 }).mount('#app');
 }
 
-// 等待 Vue 与 Supabase 两个 CDN 脚本都加载完成后再启动应用
 (function waitForDeps(retry) {
   if (window.Vue && window.supabase && window.supabase.createClient) {
     try { bootApp(); } catch (e) { console.error('启动失败:', e); }
   } else if (retry < 100) {
     setTimeout(function () { waitForDeps(retry + 1); }, 50);
   } else {
-    document.getElementById('app').innerHTML =
-      '<div style="padding:48px;text-align:center;color:#8B7355;">依赖加载失败，请检查网络后刷新重试 😢</div>';
+    document.getElementById('app').innerHTML = '<div style="padding:48px;text-align:center;color:#8B7355;">依赖加载失败，请检查网络后刷新重试 😢</div>';
   }
 })(0);
 </script>

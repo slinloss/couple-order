@@ -300,7 +300,7 @@
         </div>
         <div class="card" v-if="menuItems.length>0">
           <div class="menu-item" v-for="item in menuItems" :key="item.id" @click="goMenuDetail(item)">
-            <img v-if="item.image" :src="item.image" class="menu-item-img">
+            <img v-if="dishImg(item)" :src="dishImg(item)" class="menu-item-img">
             <div v-else class="menu-item-img-placeholder">🍲</div>
             <div class="menu-item-info">
               <div class="menu-item-name">{{ item.name }}</div>
@@ -324,7 +324,7 @@
         <span style="width:32px;"></span>
       </div>
       <div>
-        <img v-if="currentItem.image" :src="currentItem.image" class="detail-hero">
+        <img v-if="dishImg(currentItem)" :src="dishImg(currentItem)" class="detail-hero">
         <div v-else class="detail-hero-placeholder">🍲</div>
         <div class="page">
           <div class="detail-title">{{ currentItem.name }}</div>
@@ -344,6 +344,7 @@
                 </div>
                 <div class="review-rating">{{ '⭐'.repeat(r.rating) }}</div>
                 <div class="review-content">{{ r.content }}</div>
+                <img v-if="r.image" :src="r.image" style="margin-top:8px;width:70%;max-width:200px;border-radius:8px;">
               </div>
             </div>
           </div>
@@ -439,6 +440,7 @@
                 </div>
                 <div class="review-rating">{{ '⭐'.repeat(r.rating) }}</div>
                 <div class="review-content">{{ r.content }}</div>
+                <img v-if="r.image" :src="r.image" style="margin-top:8px;width:70%;max-width:200px;border-radius:8px;">
               </div>
             </div>
           </div>
@@ -495,6 +497,14 @@
         <div class="form-group">
           <label class="form-label">评价内容</label>
           <textarea class="form-textarea" v-model="reviewForm.content" :placeholder="isProvider?'对这次点餐服务说点什么~':'味道怎么样？给大厨一些反馈~'"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">配图（选填）</label>
+          <div class="img-upload" @click="$refs.reviewImgInput.click()">
+            <img v-if="reviewForm.imagePreview" :src="reviewForm.imagePreview">
+            <template v-else><div class="img-upload-icon">📷</div><div class="img-upload-text">上传一张图（成品/现场）</div></template>
+            <input type="file" ref="reviewImgInput" accept="image/*" @change="onReviewImageChange">
+          </div>
         </div>
         <button class="btn btn-primary btn-block" @click="submitReview" :disabled="!reviewForm.content||!reviewForm.rating">提交评价 ✨</button>
       </div>
@@ -643,7 +653,7 @@ function bootApp() {
     const cancellingOrder = ref(null);
 
     const reviewingOrder = ref({});
-    const reviewForm = reactive({ rating: 0, content: '' });
+    const reviewForm = reactive({ rating: 0, content: '', imagePreview: '', imageFile: null });
     const profileForm = reactive({ name: '' });
     const unreadTick = ref(0);
 
@@ -675,14 +685,14 @@ function bootApp() {
     function avatarOf(role) { return role === 'provider' ? settings.providerAvatar : settings.customerAvatar; }
     function nowISO() { return new Date().toISOString(); }
 
-    function goPage(p) { pageHistory.value = []; page.value = p; if (p==='orders') { loadOrders().then(markOrdersSeen); loadAllReviews(); } if (p==='menu') loadMenu(); }
+    function goPage(p) { pageHistory.value = []; page.value = p; if (p==='orders') { loadOrders().then(markOrdersSeen); loadAllReviews(); } if (p==='menu') { loadMenu(); loadAllReviews(); } }
     function goBack() { page.value = pageHistory.value.length > 0 ? pageHistory.value.pop() : 'menu'; }
     function goProfile() { pageHistory.value.push(page.value === 'profile' ? 'menu' : page.value); page.value = 'profile'; profileForm.name = myName.value; }
     function goAddMenu() { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = null; Object.assign(menuForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
     function editMenuItem(item) { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = item; Object.assign(menuForm, { name:item.name, description:item.description||'', imagePreview:item.image||'', imageFile:null }); }
     function goMenuDetail(item) { pageHistory.value.push('menu'); page.value = 'menu-detail'; currentItem.value = item; loadReviewsForItem(item.id); }
     function goCustomOrder() { pageHistory.value.push('menu'); page.value = 'custom-order'; Object.assign(customForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
-    function goReview(order) { pageHistory.value.push('orders'); page.value = 'review'; reviewingOrder.value = order; reviewForm.rating = 0; reviewForm.content = ''; }
+    function goReview(order) { pageHistory.value.push('orders'); page.value = 'review'; reviewingOrder.value = order; reviewForm.rating = 0; reviewForm.content = ''; reviewForm.imagePreview=''; reviewForm.imageFile=null; }
 
     async function loadSettings() {
       const { data } = await db.from('settings').select('*').eq('key','main').maybeSingle();
@@ -750,8 +760,11 @@ function bootApp() {
       try {
         let imageUrl='';
         if (customForm.imageFile) imageUrl = await uploadImage(customForm.imageFile);
-        await db.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending' });
-        showToast('定制点餐已提交 ✨'); goBack(); await loadOrders(); markOrdersSeen();
+        // 先把定制菜加入菜单并置顶
+        const { data: mi } = await db.from('menu_items').insert({ name:customForm.name, description:customForm.description||'', image:imageUrl||'', sort_order:Date.now() }).select().single();
+        // 再创建订单并关联到该菜品（便于评价与兜底图归属）
+        await db.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending', menu_item_id: mi ? mi.id : null });
+        showToast('定制点餐已提交，已加入菜单 ✨'); goBack(); await loadOrders(); await loadMenu(); markOrdersSeen();
       } catch(e){ showToast('提交失败'); console.error(e); }
       loading.value=false;
     }
@@ -800,8 +813,16 @@ function bootApp() {
       if (!reviewForm.content || !reviewForm.rating) return;
       loading.value=true; loadingText.value='提交评价...';
       try {
-        await db.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||null, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
-        showToast('评价已提交 💕'); await loadAllReviews(); markOrdersSeen(); goBack();
+        let imageUrl='';
+        if (reviewForm.imageFile) imageUrl = await uploadImage(reviewForm.imageFile);
+        const mid = reviewingOrder.value.menu_item_id || null;
+        await db.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:mid, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating, image:imageUrl });
+        // 若该菜品还没有图片，用这张有图评价作为菜品展示图
+        if (imageUrl && mid) {
+          const { data: mrow } = await db.from('menu_items').select('image').eq('id', mid).maybeSingle();
+          if (mrow && !mrow.image) { await db.from('menu_items').update({ image: imageUrl }).eq('id', mid); }
+        }
+        showToast('评价已提交 💕'); await loadAllReviews(); await loadMenu(); markOrdersSeen(); goBack();
       } catch(e){ showToast('提交失败'); console.error(e); }
       loading.value=false;
     }
@@ -825,6 +846,8 @@ function bootApp() {
 
     function onMenuImageChange(e){ const f=e.target.files[0]; if(!f) return; menuForm.imageFile=f; menuForm.imagePreview=URL.createObjectURL(f); }
     function onCustomImageChange(e){ const f=e.target.files[0]; if(!f) return; customForm.imageFile=f; customForm.imagePreview=URL.createObjectURL(f); }
+    function onReviewImageChange(e){ const f=e.target.files[0]; if(!f) return; reviewForm.imageFile=f; reviewForm.imagePreview=URL.createObjectURL(f); }
+    function dishImg(item){ if(!item) return ''; if(item.image) return item.image; const r=allReviews.value.find(x=>x.menu_item_id===item.id && x.image); return r ? r.image : ''; }
     async function uploadImage(file) {
       const ext=file.name.split('.').pop();
       const fileName=`${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
@@ -887,7 +910,7 @@ function bootApp() {
       openOrderModal, confirmPlaceOrder, submitCustomOrder, confirmOrder,
       openCancelModal, doCancelOrder,
       submitReview, saveProfile, onAvatarChange, copyLink,
-      onMenuImageChange, onCustomImageChange,
+      onMenuImageChange, onCustomImageChange, onReviewImageChange, dishImg,
       formatTime, statusText, getOrderImage, floatHeart,
     };
   }

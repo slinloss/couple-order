@@ -329,6 +329,7 @@
         <div class="page">
           <div class="detail-title">{{ currentItem.name }}</div>
           <div class="detail-desc">{{ currentItem.description || '暂无描述' }}</div>
+          <button class="btn btn-primary btn-block" v-if="!isProvider" @click="openOrderModal(currentItem)" style="margin-top:20px;">点这道菜 🛎️</button>
           <div class="section-title">评价</div>
           <div class="card">
             <div class="card-body" v-if="currentItemReviews.length===0">
@@ -348,7 +349,6 @@
           </div>
         </div>
       </div>
-      <button class="fab-order" v-if="!isProvider" @click="openOrderModal(currentItem)">点这道菜 🛎️</button>
     </div>
 
     <!-- ADD/EDIT MENU -->
@@ -522,18 +522,20 @@
         </div>
         <button class="btn btn-primary btn-block" @click="saveProfile" :disabled="!profileForm.name">保存 💕</button>
 
-        <div class="section-title" style="margin-top:28px;">专属链接</div>
-        <div class="link-row">
-          <div class="link-row-label">👨‍🍳 {{ settings.providerName || '朱大能' }}（服务方）</div>
-          <div class="link-row-url">{{ chefLink }}</div>
-          <button class="btn btn-sm btn-secondary" @click="copyLink(chefLink)">复制链接</button>
-        </div>
-        <div class="link-row">
-          <div class="link-row-label">👸 {{ settings.customerName || '林小赖' }}（顾客）</div>
-          <div class="link-row-url">{{ guestLink }}</div>
-          <button class="btn btn-sm btn-secondary" @click="copyLink(guestLink)">复制链接</button>
-        </div>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.6;">把对方的专属链接发给 TA，各自打开即可。链接会自动记住身份，无需手动切换。</p>
+        <template v-if="isProvider">
+          <div class="section-title" style="margin-top:28px;">专属链接</div>
+          <div class="link-row">
+            <div class="link-row-label">👨‍🍳 {{ settings.providerName || '朱大能' }}（服务方）</div>
+            <div class="link-row-url">{{ chefLink }}</div>
+            <button class="btn btn-sm btn-secondary" @click="copyLink(chefLink)">复制链接</button>
+          </div>
+          <div class="link-row">
+            <div class="link-row-label">👸 {{ settings.customerName || '林小赖' }}（顾客）</div>
+            <div class="link-row-url">{{ guestLink }}</div>
+            <button class="btn btn-sm btn-secondary" @click="copyLink(guestLink)">复制链接</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.6;">把对方的专属链接发给 TA，各自打开即可。链接会自动记住身份，无需手动切换。</p>
+        </template>
       </div>
     </div>
 

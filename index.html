@@ -601,12 +601,14 @@
 const SUPABASE_URL = 'https://ofexcddxznquikdllsqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mZXhjZGR4em5xdWlrZGxsc3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDc2NzAsImV4cCI6MjEwMzE4MzY3MH0.lYShh86M8nf6TBs20HFNdBILY6gv6dhcxNQjKPgXdVk';
 
-// 初始化 Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 初始化（等待 Vue 与 Supabase 两个 CDN 脚本都就绪后再启动，避免加载时序竞态）
+let supabase;
 
-const { createApp, ref, reactive, computed, onMounted } = Vue;
+function bootApp() {
+  const { createApp, ref, reactive, computed, onMounted } = Vue;
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-createApp({
+  createApp({
   setup() {
     const loading = ref(true);
     const loadingText = ref('加载中...');
@@ -815,6 +817,19 @@ createApp({
     };
   }
 }).mount('#app');
+}
+
+// 等待 Vue 与 Supabase 两个 CDN 脚本都加载完成后再启动应用
+(function waitForDeps(retry) {
+  if (window.Vue && window.supabase && window.supabase.createClient) {
+    try { bootApp(); } catch (e) { console.error('启动失败:', e); }
+  } else if (retry < 100) {
+    setTimeout(function () { waitForDeps(retry + 1); }, 50);
+  } else {
+    document.getElementById('app').innerHTML =
+      '<div style="padding:48px;text-align:center;color:#8B7355;">依赖加载失败，请检查网络后刷新重试 😢</div>';
+  }
+})(0);
 </script>
 </body>
 </html>

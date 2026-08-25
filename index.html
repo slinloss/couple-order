@@ -594,6 +594,7 @@
   </div>
 </div>
 
+
 <script>
 // ============================================
 // 🔧 配置区域 - 替换为你的 Supabase 项目信息
@@ -602,11 +603,11 @@ const SUPABASE_URL = 'https://ofexcddxznquikdllsqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mZXhjZGR4em5xdWlrZGxsc3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDc2NzAsImV4cCI6MjEwMzE4MzY3MH0.lYShh86M8nf6TBs20HFNdBILY6gv6dhcxNQjKPgXdVk';
 
 // 初始化（等待 Vue 与 Supabase 两个 CDN 脚本都就绪后再启动，避免加载时序竞态）
-let supabase;
+let db;
 
 function bootApp() {
   const { createApp, ref, reactive, computed, onMounted } = Vue;
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   createApp({
   setup() {
@@ -659,16 +660,16 @@ function bootApp() {
 
     // === Data ===
     async function loadSettings() {
-      const { data } = await supabase.from('settings').select('*').eq('key', 'main').maybeSingle();
+      const { data } = await db.from('settings').select('*').eq('key', 'main').maybeSingle();
       if (data) { settings.id = data.id; settings.providerName = data.provider_name||'朱大能'; settings.providerAvatar = data.provider_avatar||''; settings.customerName = data.customer_name||'林小赖'; settings.customerAvatar = data.customer_avatar||''; }
     }
     async function saveSettings() {
       const payload = { key:'main', provider_name:settings.providerName, provider_avatar:settings.providerAvatar, customer_name:settings.customerName, customer_avatar:settings.customerAvatar };
-      if (settings.id) { await supabase.from('settings').update(payload).eq('id', settings.id); }
-      else { const { data } = await supabase.from('settings').insert(payload).select().single(); if(data) settings.id = data.id; }
+      if (settings.id) { await db.from('settings').update(payload).eq('id', settings.id); }
+      else { const { data } = await db.from('settings').insert(payload).select().single(); if(data) settings.id = data.id; }
     }
     async function loadMenu() {
-      const { data } = await supabase.from('menu_items').select('*').order('sort_order', { ascending: false });
+      const { data } = await db.from('menu_items').select('*').order('sort_order', { ascending: false });
       menuItems.value = data || [];
     }
     async function saveMenuItem() {
@@ -678,10 +679,10 @@ function bootApp() {
         let imageUrl = menuForm.imagePreview;
         if (menuForm.imageFile) imageUrl = await uploadImage(menuForm.imageFile);
         if (editingItem.value) {
-          await supabase.from('menu_items').update({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() }).eq('id', editingItem.value.id);
+          await db.from('menu_items').update({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() }).eq('id', editingItem.value.id);
           showToast('修改成功 ✅');
         } else {
-          await supabase.from('menu_items').insert({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() });
+          await db.from('menu_items').insert({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() });
           showToast('菜品已上架 🎉');
         }
         await loadMenu(); goBack();
@@ -690,17 +691,17 @@ function bootApp() {
     }
     async function deleteMenuItem(item) {
       if (!confirm(`确定删除「${item.name}」吗？`)) return;
-      await supabase.from('menu_items').delete().eq('id', item.id);
+      await db.from('menu_items').delete().eq('id', item.id);
       await loadMenu(); showToast('已删除');
     }
     async function loadOrders() {
-      const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
+      const { data } = await db.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
       orders.value = data || [];
     }
     async function orderFromDetail() {
       loading.value = true; loadingText.value = '下单中...';
       try {
-        await supabase.from('orders').insert({ type:'menu', menu_item_id:currentItem.value.id, menu_item_name:currentItem.value.name, menu_item_image:currentItem.value.image||'', status:'pending' });
+        await db.from('orders').insert({ type:'menu', menu_item_id:currentItem.value.id, menu_item_name:currentItem.value.name, menu_item_image:currentItem.value.image||'', status:'pending' });
         showToast('已下单，等大厨接单~ 🛎️'); floatHeart();
       } catch(e) { showToast('下单失败'); }
       loading.value = false;
@@ -711,27 +712,27 @@ function bootApp() {
       try {
         let imageUrl = '';
         if (customForm.imageFile) imageUrl = await uploadImage(customForm.imageFile);
-        await supabase.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending' });
+        await db.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending' });
         showToast('定制点餐已提交 ✨'); goBack(); await loadOrders();
       } catch(e) { showToast('提交失败'); }
       loading.value = false;
     }
     async function confirmOrder(order) {
-      await supabase.from('orders').update({ status:'confirmed' }).eq('id', order.id);
+      await db.from('orders').update({ status:'confirmed' }).eq('id', order.id);
       showToast('已接单！开始准备~ 🍳'); floatHeart(); await loadOrders();
     }
     function showCancelModal(order) { cancellingOrder.value = order; cancelReason.value = ''; showCancelModalFlag.value = true; }
     async function doCancelOrder() {
       if (!cancellingOrder.value) return;
-      await supabase.from('orders').update({ status:'cancelled', cancel_reason:cancelReason.value||'' }).eq('id', cancellingOrder.value.id);
+      await db.from('orders').update({ status:'cancelled', cancel_reason:cancelReason.value||'' }).eq('id', cancellingOrder.value.id);
       showCancelModalFlag.value = false; showToast('已取消'); await loadOrders();
     }
     async function loadReviewsForItem(menuItemId) {
-      const { data } = await supabase.from('reviews').select('*').eq('menu_item_id', menuItemId).order('created_at', { ascending: false });
+      const { data } = await db.from('reviews').select('*').eq('menu_item_id', menuItemId).order('created_at', { ascending: false });
       currentItemReviews.value = data || [];
     }
     async function loadMyReviews() {
-      const { data } = await supabase.from('reviews').select('order_id,from_role').eq('from_role', currentRole.value);
+      const { data } = await db.from('reviews').select('order_id,from_role').eq('from_role', currentRole.value);
       myReviews.value = data || [];
     }
     function hasReviewed(order) { return myReviews.value.some(r => r.order_id === order.id); }
@@ -739,7 +740,7 @@ function bootApp() {
       if (!reviewForm.content || !reviewForm.rating) return;
       loading.value = true; loadingText.value = '提交评价...';
       try {
-        await supabase.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||reviewingOrder.value.id, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
+        await db.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||reviewingOrder.value.id, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
         showToast('评价已提交 💕'); myReviews.value.push({ order_id:reviewingOrder.value.id, from_role:currentRole.value }); goBack();
       } catch(e) { showToast('提交失败'); }
       loading.value = false;
@@ -765,9 +766,9 @@ function bootApp() {
     async function uploadImage(file) {
       const ext = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error } = await supabase.storage.from('images').upload(fileName, file, { cacheControl:'3600', upsert:false });
+      const { error } = await db.storage.from('images').upload(fileName, file, { cacheControl:'3600', upsert:false });
       if (error) throw error;
-      const { data } = supabase.storage.from('images').getPublicUrl(fileName);
+      const { data } = db.storage.from('images').getPublicUrl(fileName);
       return data.publicUrl;
     }
 

@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>小厨房点餐</title>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Vue 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+  <style>
+    :root {
+      --primary: #FF8BA7;
+      --primary-light: #FFD6E0;
+      --primary-dark: #E8668A;
+      --secondary: #FFECD2;
+      --accent: #FFB347;
+      --bg: #FFF9F5;
+      --card: #FFFFFF;
+      --text: #4A3728;
+      --text-light: #8B7355;
+      --text-muted: #BDA68F;
+      --border: #F5E6D8;
+      --success: #7BC67E;
+      --danger: #FF6B6B;
+      --shadow: 0 2px 12px rgba(255,139,167,0.15);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden;
+    }
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,249,245,0.9); display: flex; align-items: center;
+      justify-content: center; z-index: 9999; flex-direction: column; gap: 16px;
+    }
+    .loading-spinner {
+      width: 40px; height: 40px; border: 3px solid var(--primary-light);
+      border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: var(--text-light); font-size: 14px; }
+    .top-bar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,249,245,0.95); backdrop-filter: blur(10px);
+      padding: 12px 16px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid var(--border);
+    }
+    .top-bar-title { font-size: 17px; font-weight: 600; }
+    .top-bar-back {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary-light); display: flex; align-items: center;
+      justify-content: center; cursor: pointer; border: none; font-size: 16px;
+    }
+    .top-bar-action {
+      font-size: 14px; color: var(--primary-dark); cursor: pointer;
+      background: none; border: none; font-weight: 500; padding: 6px 12px;
+      border-radius: 20px; background: var(--primary-light);
+    }
+    .page { padding: 16px; padding-bottom: 80px; max-width: 420px; margin: 0 auto; }
+    .role-page {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh; padding: 32px;
+      background: linear-gradient(160deg, #FFF9F5 0%, #FFE8EC 50%, #FFECD2 100%);
+    }
+    .role-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .role-subtitle { color: var(--text-light); margin-bottom: 40px; font-size: 15px; }
+    .role-cards { display: flex; gap: 16px; width: 100%; max-width: 340px; }
+    .role-card {
+      flex: 1; background: var(--card); border-radius: var(--radius);
+      padding: 24px 16px; text-align: center; cursor: pointer;
+      box-shadow: var(--shadow); transition: all 0.3s; border: 2px solid transparent;
+    }
+    .role-card:active { transform: scale(0.96); }
+    .role-card:hover { border-color: var(--primary); }
+    .role-avatar-placeholder {
+      width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 12px;
+      background: var(--primary-light); display: flex; align-items: center;
+      justify-content: center; font-size: 28px; overflow: hidden;
+    }
+    .role-avatar-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+    .role-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .role-desc { font-size: 12px; color: var(--text-light); }
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.98); backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border); display: flex;
+      padding: 8px 0 env(safe-area-inset-bottom, 8px); z-index: 100;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      gap: 2px; cursor: pointer; padding: 6px 0; border: none; background: none; position: relative;
+    }
+    .nav-icon { font-size: 22px; }
+    .nav-label { font-size: 11px; color: var(--text-muted); }
+    .nav-item.active .nav-label { color: var(--primary); font-weight: 500; }
+    .nav-badge {
+      position: absolute; top: 2px; right: calc(50% - 18px);
+      background: var(--danger); color: white; font-size: 10px;
+      min-width: 16px; height: 16px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; padding: 0 4px;
+    }
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden; margin-bottom: 12px;
+    }
+    .card-body { padding: 16px; }
+    .menu-item {
+      display: flex; gap: 12px; padding: 14px 16px;
+      border-bottom: 1px solid var(--border); align-items: center;
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item-img {
+      width: 72px; height: 72px; border-radius: var(--radius-sm);
+      object-fit: cover; background: var(--secondary); flex-shrink: 0;
+    }
+    .menu-item-img-placeholder {
+      width: 72px; height: 72px; border-radius: var(--radius-sm);
+      background: var(--secondary); display: flex; align-items: center;
+      justify-content: center; font-size: 28px; flex-shrink: 0;
+    }
+    .menu-item-info { flex: 1; min-width: 0; }
+    .menu-item-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .menu-item-desc {
+      font-size: 13px; color: var(--text-light);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .menu-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .menu-item-actions button {
+      width: 32px; height: 32px; border-radius: 50%; border: none;
+      display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+    }
+    .btn-edit { background: var(--secondary); }
+    .btn-delete { background: #FFE5E5; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 14px; font-weight: 500; margin-bottom: 6px; display: block; }
+    .form-input, .form-textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 15px; outline: none;
+      transition: border-color 0.2s; background: var(--card);
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--primary); }
+    .form-textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+    .img-upload {
+      width: 100%; height: 160px; border: 2px dashed var(--border);
+      border-radius: var(--radius-sm); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; cursor: pointer;
+      transition: all 0.2s; position: relative; overflow: hidden;
+    }
+    .img-upload:hover { border-color: var(--primary); background: var(--primary-light); }
+    .img-upload img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .img-upload-text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+    .img-upload-icon { font-size: 32px; }
+    .img-upload input { display: none; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 12px 24px; border-radius: 24px; font-size: 15px;
+      font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: var(--primary-light); color: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 16px; }
+    .btn-ghost { background: transparent; color: var(--primary); }
+    .btn[disabled] { opacity: 0.5; pointer-events: none; }
+    .order-card { padding: 16px; border-bottom: 1px solid var(--border); }
+    .order-card:last-child { border-bottom: none; }
+    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .order-time { font-size: 12px; color: var(--text-muted); }
+    .order-status { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+    .status-pending { background: #FFF3CD; color: #856404; }
+    .status-confirmed { background: #D4EDDA; color: #155724; }
+    .status-cancelled { background: #FFE5E5; color: #CC3333; }
+    .order-content { display: flex; gap: 12px; align-items: center; }
+    .order-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--secondary); }
+    .order-img-placeholder {
+      width: 56px; height: 56px; border-radius: 10px; background: var(--secondary);
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .order-name { font-size: 15px; font-weight: 500; }
+    .order-desc { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+    .order-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .order-cancel-reason {
+      margin-top: 8px; padding: 8px 12px; background: #FFF3F3;
+      border-radius: 8px; font-size: 13px; color: var(--danger);
+    }
+    .review-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .review-item:last-child { border-bottom: none; }
+    .review-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .review-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary-light); display: flex; align-items: center;
+      justify-content: center; font-size: 14px;
+    }
+    .review-name { font-size: 13px; font-weight: 500; }
+    .review-time { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+    .review-content { font-size: 14px; line-height: 1.6; }
+    .review-rating { margin-bottom: 4px; font-size: 14px; }
+    .rating { display: flex; gap: 4px; }
+    .rating-star { font-size: 24px; cursor: pointer; transition: transform 0.1s; }
+    .rating-star:active { transform: scale(1.2); }
+    .detail-hero { width: 100%; height: 220px; object-fit: cover; background: var(--secondary); }
+    .detail-hero-placeholder {
+      width: 100%; height: 220px; background: var(--secondary);
+      display: flex; align-items: center; justify-content: center; font-size: 64px;
+    }
+    .detail-title { font-size: 22px; font-weight: 700; margin: 16px 0 8px; }
+    .detail-desc { font-size: 15px; color: var(--text-light); line-height: 1.7; }
+    .profile-avatar-wrap { text-align: center; margin: 24px 0; }
+    .profile-avatar {
+      width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px;
+      background: var(--primary-light); display: flex; align-items: center;
+      justify-content: center; font-size: 36px; cursor: pointer;
+      position: relative; overflow: hidden; border: 3px solid var(--primary);
+    }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; }
+    .toast {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(74,55,40,0.85); color: white; padding: 12px 24px;
+      border-radius: 20px; font-size: 14px; z-index: 10000;
+      animation: fadeInOut 2s ease; pointer-events: none;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
+      15% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+      85% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
+    }
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4); z-index: 1000;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .modal-content {
+      background: var(--card); width: 100%; max-width: 420px;
+      border-radius: 20px 20px 0 0; padding: 24px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom,0px));
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } }
+    .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 16px; text-align: center; }
+    .section-title {
+      font-size: 16px; font-weight: 600; margin: 20px 0 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::before {
+      content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px;
+    }
+    .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; background: var(--secondary); color: var(--accent); }
+    .tag-custom { background: var(--primary-light); color: var(--primary-dark); }
+    .fab {
+      position: fixed; bottom: 80px; right: 20px;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--primary); color: white; border: none;
+      box-shadow: 0 4px 16px rgba(255,139,167,0.4);
+      font-size: 24px; cursor: pointer; z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fab:active { transform: scale(0.9); }
+    .fade-enter { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } }
+    ::-webkit-scrollbar { width: 0; }
+    .tab-bar { display: flex; margin-bottom: 16px; background: var(--card); border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow); }
+    .tab-item {
+      flex: 1; padding: 10px; text-align: center; font-size: 13px;
+      cursor: pointer; border: none; background: none; color: var(--text-light); transition: all 0.2s;
+    }
+    .tab-item.active { background: var(--primary); color: white; font-weight: 500; }
+    .heart-float {
+      position: fixed; pointer-events: none; z-index: 9999;
+      animation: heartUp 1.5s ease forwards; font-size: 24px;
+    }
+    @keyframes heartUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
+    }
+    .init-error {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 32px; text-align: center;
+    }
+    .init-error-icon { font-size: 48px; margin-bottom: 16px; }
+    .init-error-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .init-error-desc { font-size: 14px; color: var(--text-light); line-height: 1.6; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="loading-overlay" v-if="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">{{ loadingText }}</div>
+  </div>
+
+  <div class="init-error" v-if="initError">
+    <div class="init-error-icon">😢</div>
+    <div class="init-error-title">连接失败</div>
+    <div class="init-error-desc">请检查 Supabase 配置是否正确，<br>或网络是否可用。</div>
+  </div>
+
+  <div class="toast" v-if="toast" :key="toastKey">{{ toast }}</div>
+
+  <!-- Role Selection -->
+  <div class="role-page" v-if="!initError && !currentRole">
+    <div class="role-title">小厨房点餐 🍳</div>
+    <div class="role-subtitle">今天想吃什么，告诉我~</div>
+    <div class="role-cards">
+      <div class="role-card" @click="selectRole('provider')">
+        <div class="role-avatar-placeholder">
+          <img v-if="settings.providerAvatar" :src="settings.providerAvatar">
+          <span v-else>👨‍🍳</span>
+        </div>
+        <div class="role-name">{{ settings.providerName || '朱大能' }}</div>
+        <div class="role-desc">服务方·负责做菜</div>
+      </div>
+      <div class="role-card" @click="selectRole('customer')">
+        <div class="role-avatar-placeholder">
+          <img v-if="settings.customerAvatar" :src="settings.customerAvatar">
+          <span v-else>👸</span>
+        </div>
+        <div class="role-name">{{ settings.customerName || '林小赖' }}</div>
+        <div class="role-desc">顾客·负责点菜</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div v-if="!initError && currentRole">
+    <!-- MENU LIST -->
+    <div v-if="page==='menu'" class="fade-enter">
+      <div class="top-bar">
+        <div class="top-bar-title">📋 菜单</div>
+        <button class="top-bar-action" @click="goProfile">{{ myName }} ⚙️</button>
+      </div>
+      <div class="page">
+        <div v-if="menuItems.length===0" class="empty-state">
+          <div class="empty-icon">🍽️</div>
+          <div class="empty-text" v-if="isProvider">还没有菜品哦，点击右下角添加~</div>
+          <div class="empty-text" v-else>菜单空空如也，催催大厨吧~</div>
+        </div>
+        <div class="card" v-if="menuItems.length>0">
+          <div class="menu-item" v-for="item in menuItems" :key="item.id" @click="goMenuDetail(item)">
+            <img v-if="item.image" :src="item.image" class="menu-item-img">
+            <div v-else class="menu-item-img-placeholder">🍲</div>
+            <div class="menu-item-info">
+              <div class="menu-item-name">{{ item.name }}</div>
+              <div class="menu-item-desc">{{ item.description }}</div>
+            </div>
+            <div class="menu-item-actions" v-if="isProvider" @click.stop>
+              <button class="btn-edit" @click="editMenuItem(item)">✏️</button>
+              <button class="btn-delete" @click="deleteMenuItem(item)">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="fab" v-if="isProvider" @click="goAddMenu">+</button>
+    </div>
+
+    <!-- MENU DETAIL -->
+    <div v-if="page==='menu-detail'" class="fade-enter">
+      <div class="top-bar">
+        <button class="top-bar-back" @click="goBack">←</button>
+        <div class="top-bar-title">菜品详情</div>
+        <button class="top-bar-action" v-if="!isProvider" @click="orderFromDetail">点这道菜</button>
+        <span v-else></span>
+      </div>
+      <div>
+        <img v-if="currentItem.image" :src="currentItem.image" class="detail-hero">
+        <div v-else class="detail-hero-placeholder">🍲</div>
+        <div class="page">
+          <div class="detail-title">{{ currentItem.name }}</div>
+          <div class="detail-desc">{{ currentItem.description || '暂无描述' }}</div>
+          <div class="section-title">评价</div>
+          <div class="card">
+            <div class="card-body" v-if="currentItemReviews.length===0">
+              <div class="empty-state" style="padding:24px 0;"><div class="empty-text">还没有评价哦~</div></div>
+            </div>
+            <div class="card-body" v-else>
+              <div class="review-item" v-for="r in currentItemReviews" :key="r.id">
+                <div class="review-header">
+                  <div class="review-avatar">{{ r.from_role==='provider' ? '👨‍🍳' : '👸' }}</div>
+                  <div class="review-name">{{ r.from_role==='provider' ? settings.providerName : settings.customerName }}</div>
+                  <div class="review-time">{{ formatTime(r.created_at) }}</div>
+                </div>
+                <div class="review-rating">{{ '⭐'.repeat(r.rating) }}</div>
+                <div class="review-content">{{ r.content }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT MENU -->
+    <div v-if="page==='menu-edit'" class="fade-enter">
+      <div class="top-bar">
+        <button class="top-bar-back" @click="goBack">←</button>
+        <div class="top-bar-title">{{ editingItem ? '编辑菜品' : '新增菜品' }}</div>
+        <span></span>
+      </div>
+      <div class="page">
+        <div class="form-group">
+          <label class="form-label">菜名</label>
+          <input class="form-input" v-model="menuForm.name" placeholder="给这道菜取个名字~">
+        </div>
+        <div class="form-group">
+          <label class="form-label">图片</label>
+          <div class="img-upload" @click="$refs.menuImgInput.click()">
+            <img v-if="menuForm.imagePreview" :src="menuForm.imagePreview">
+            <template v-else>
+              <div class="img-upload-icon">📷</div>
+              <div class="img-upload-text">点击上传菜品图片</div>
+            </template>
+            <input type="file" ref="menuImgInput" accept="image/*" @change="onMenuImageChange">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">说明</label>
+          <textarea class="form-textarea" v-model="menuForm.description" placeholder="食材、口味、烹饪方式..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-block" @click="saveMenuItem" :disabled="!menuForm.name">
+          {{ editingItem ? '保存修改' : '添加到菜单' }} ✨
+        </button>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div v-if="page==='orders'" class="fade-enter">
+      <div class="top-bar">
+        <div class="top-bar-title">📝 订单</div>
+        <button class="top-bar-action" v-if="!isProvider" @click="goCustomOrder">定制点餐</button>
+        <span v-else></span>
+      </div>
+      <div class="page">
+        <div class="tab-bar">
+          <div class="tab-item" :class="{active:orderFilter==='all'}" @click="orderFilter='all'">全部</div>
+          <div class="tab-item" :class="{active:orderFilter==='pending'}" @click="orderFilter='pending'">待处理{{ pendingCount?`(${pendingCount})`:'' }}</div>
+          <div class="tab-item" :class="{active:orderFilter==='confirmed'}" @click="orderFilter='confirmed'">已确认</div>
+          <div class="tab-item" :class="{active:orderFilter==='cancelled'}" @click="orderFilter='cancelled'">已取消</div>
+        </div>
+        <div v-if="filteredOrders.length===0" class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-text" v-if="isProvider">还没有收到点单哦~</div>
+          <div class="empty-text" v-else>还没有下过单，去菜单看看吧~</div>
+        </div>
+        <div class="card" v-if="filteredOrders.length>0">
+          <div class="order-card" v-for="order in filteredOrders" :key="order.id">
+            <div class="order-header">
+              <div class="order-time">{{ formatTime(order.created_at) }}</div>
+              <span class="order-status" :class="'status-'+order.status">{{ statusText(order.status) }}</span>
+            </div>
+            <div class="order-content">
+              <img v-if="getOrderImage(order)" :src="getOrderImage(order)" class="order-img">
+              <div v-else class="order-img-placeholder">{{ order.type==='custom'?'✍️':'🍲' }}</div>
+              <div>
+                <div class="order-name">
+                  {{ order.type==='custom' ? order.custom_name : order.menu_item_name }}
+                  <span class="tag tag-custom" v-if="order.type==='custom'" style="margin-left:6px;">定制</span>
+                </div>
+                <div class="order-desc">{{ order.type==='custom' ? order.custom_desc : '' }}</div>
+              </div>
+            </div>
+            <div class="order-cancel-reason" v-if="order.status==='cancelled'&&order.cancel_reason">取消原因：{{ order.cancel_reason }}</div>
+            <div class="order-actions" v-if="isProvider&&order.status==='pending'">
+              <button class="btn btn-sm btn-success" @click="confirmOrder(order)">✅ 接单</button>
+              <button class="btn btn-sm btn-danger" @click="showCancelModal(order)">❌ 取消</button>
+            </div>
+            <div class="order-actions" v-if="order.status==='confirmed'&&!hasReviewed(order)">
+              <button class="btn btn-sm btn-secondary" @click="goReview(order)">💬 写评价</button>
+            </div>
+            <div v-if="order.status==='confirmed'&&hasReviewed(order)" style="margin-top:8px;font-size:12px;color:var(--success);">✅ 已评价</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOM ORDER -->
+    <div v-if="page==='custom-order'" class="fade-enter">
+      <div class="top-bar">
+        <button class="top-bar-back" @click="goBack">←</button>
+        <div class="top-bar-title">定制点餐 ✍️</div>
+        <span></span>
+      </div>
+      <div class="page">
+        <p style="font-size:14px;color:var(--text-light);margin-bottom:20px;">菜单里没有想吃的？告诉大厨你想要什么~</p>
+        <div class="form-group">
+          <label class="form-label">想吃什么</label>
+          <input class="form-input" v-model="customForm.name" placeholder="菜名或食物名称">
+        </div>
+        <div class="form-group">
+          <label class="form-label">参考图片（选填）</label>
+          <div class="img-upload" @click="$refs.customImgInput.click()">
+            <img v-if="customForm.imagePreview" :src="customForm.imagePreview">
+            <template v-else>
+              <div class="img-upload-icon">📷</div>
+              <div class="img-upload-text">上传参考图</div>
+            </template>
+            <input type="file" ref="customImgInput" accept="image/*" @change="onCustomImageChange">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注说明（选填）</label>
+          <textarea class="form-textarea" v-model="customForm.description" placeholder="口味偏好、食材要求等..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-block" @click="submitCustomOrder" :disabled="!customForm.name">提交点餐 🛎️</button>
+      </div>
+    </div>
+
+    <!-- REVIEW -->
+    <div v-if="page==='review'" class="fade-enter">
+      <div class="top-bar">
+        <button class="top-bar-back" @click="goBack">←</button>
+        <div class="top-bar-title">写评价 💬</div>
+        <span></span>
+      </div>
+      <div class="page">
+        <div class="card" style="padding:16px;margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:500;">{{ reviewingOrder.type==='custom'?reviewingOrder.custom_name:reviewingOrder.menu_item_name }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">评分</label>
+          <div class="rating">
+            <span class="rating-star" v-for="i in 5" :key="i" @click="reviewForm.rating=i">{{ i<=reviewForm.rating?'⭐':'☆' }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">评价内容</label>
+          <textarea class="form-textarea" v-model="reviewForm.content" :placeholder="isProvider?'对这次点餐服务说点什么~':'味道怎么样？给大厨一些反馈~'"></textarea>
+        </div>
+        <button class="btn btn-primary btn-block" @click="submitReview" :disabled="!reviewForm.content||!reviewForm.rating">提交评价 ✨</button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div v-if="page==='profile'" class="fade-enter">
+      <div class="top-bar">
+        <button class="top-bar-back" @click="goBack">←</button>
+        <div class="top-bar-title">个人设置</div>
+        <span></span>
+      </div>
+      <div class="page">
+        <div class="profile-avatar-wrap">
+          <div class="profile-avatar" @click="$refs.avatarInput.click()">
+            <img v-if="myAvatar" :src="myAvatar">
+            <span v-else>{{ isProvider?'👨‍🍳':'👸' }}</span>
+            <input type="file" ref="avatarInput" accept="image/*" @change="onAvatarChange" style="display:none;">
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);">点击更换头像</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">昵称</label>
+          <input class="form-input" v-model="profileForm.name" placeholder="输入昵称">
+        </div>
+        <button class="btn btn-primary btn-block" @click="saveProfile" :disabled="!profileForm.name" style="margin-top:20px;">保存 💕</button>
+        <button class="btn btn-ghost btn-block" @click="switchRole" style="margin-top:12px;">切换身份</button>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav" v-if="showNav">
+      <button class="nav-item" :class="{active:page==='menu'||page==='menu-detail'}" @click="goPage('menu')">
+        <span class="nav-icon">📋</span><span class="nav-label">菜单</span>
+      </button>
+      <button class="nav-item" :class="{active:page==='orders'}" @click="goPage('orders')">
+        <span class="nav-icon">📝</span><span class="nav-label">订单</span>
+        <span class="nav-badge" v-if="pendingCount&&isProvider">{{ pendingCount }}</span>
+      </button>
+      <button class="nav-item" :class="{active:page==='profile'}" @click="goProfile">
+        <span class="nav-icon">{{ isProvider?'👨‍🍳':'👸' }}</span><span class="nav-label">我的</span>
+      </button>
+    </div>
+
+    <!-- Cancel Modal -->
+    <div class="modal-overlay" v-if="showCancelModalFlag" @click.self="showCancelModalFlag=false">
+      <div class="modal-content">
+        <div class="modal-title">取消原因</div>
+        <div class="form-group">
+          <textarea class="form-textarea" v-model="cancelReason" placeholder="告诉TA为什么取消吧~（选填）" style="min-height:80px;"></textarea>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-secondary" style="flex:1;" @click="showCancelModalFlag=false">再想想</button>
+          <button class="btn btn-danger" style="flex:1;" @click="doCancelOrder">确认取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// 🔧 配置区域 - 替换为你的 Supabase 项目信息
+// ============================================
+const SUPABASE_URL = 'https://ofexcddxznquikdllsqj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mZXhjZGR4em5xdWlrZGxsc3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDc2NzAsImV4cCI6MjEwMzE4MzY3MH0.lYShh86M8nf6TBs20HFNdBILY6gv6dhcxNQjKPgXdVk';
+
+// 初始化 Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const loading = ref(true);
+    const loadingText = ref('加载中...');
+    const initError = ref(false);
+    const toast = ref('');
+    const toastKey = ref(0);
+    const currentRole = ref(localStorage.getItem('couple_order_role') || '');
+    const page = ref('menu');
+    const pageHistory = ref([]);
+
+    const settings = reactive({ id: null, providerName: '朱大能', providerAvatar: '', customerName: '林小赖', customerAvatar: '' });
+    const menuItems = ref([]);
+    const editingItem = ref(null);
+    const menuForm = reactive({ name: '', description: '', imagePreview: '', imageFile: null });
+    const currentItem = ref({});
+    const currentItemReviews = ref([]);
+    const orders = ref([]);
+    const orderFilter = ref('all');
+    const customForm = reactive({ name: '', description: '', imagePreview: '', imageFile: null });
+    const showCancelModalFlag = ref(false);
+    const cancelReason = ref('');
+    const cancellingOrder = ref(null);
+    const reviewingOrder = ref({});
+    const reviewForm = reactive({ rating: 0, content: '' });
+    const myReviews = ref([]);
+    const profileForm = reactive({ name: '' });
+
+    const isProvider = computed(() => currentRole.value === 'provider');
+    const myName = computed(() => isProvider.value ? settings.providerName : settings.customerName);
+    const myAvatar = computed(() => isProvider.value ? settings.providerAvatar : settings.customerAvatar);
+    const showNav = computed(() => ['menu','orders','profile','menu-detail'].includes(page.value));
+    const filteredOrders = computed(() => orderFilter.value === 'all' ? orders.value : orders.value.filter(o => o.status === orderFilter.value));
+    const pendingCount = computed(() => orders.value.filter(o => o.status === 'pending').length);
+
+    function showToast(msg) { toast.value = msg; toastKey.value++; setTimeout(() => { toast.value = ''; }, 2000); }
+
+    // Navigation
+    function selectRole(role) { currentRole.value = role; localStorage.setItem('couple_order_role', role); loadData(); }
+    function switchRole() { currentRole.value = ''; localStorage.removeItem('couple_order_role'); page.value = 'menu'; }
+    function goPage(p) { pageHistory.value = []; page.value = p; if (p==='orders') loadOrders(); if (p==='menu') loadMenu(); }
+    function goBack() { page.value = pageHistory.value.length > 0 ? pageHistory.value.pop() : 'menu'; }
+    function goProfile() { pageHistory.value.push(page.value); page.value = 'profile'; profileForm.name = myName.value; }
+    function goAddMenu() { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = null; Object.assign(menuForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
+    function editMenuItem(item) { pageHistory.value.push('menu'); page.value = 'menu-edit'; editingItem.value = item; Object.assign(menuForm, { name:item.name, description:item.description||'', imagePreview:item.image||'', imageFile:null }); }
+    function goMenuDetail(item) { pageHistory.value.push('menu'); page.value = 'menu-detail'; currentItem.value = item; loadReviewsForItem(item.id); }
+    function goCustomOrder() { pageHistory.value.push('orders'); page.value = 'custom-order'; Object.assign(customForm, { name:'', description:'', imagePreview:'', imageFile:null }); }
+    function goReview(order) { pageHistory.value.push('orders'); page.value = 'review'; reviewingOrder.value = order; reviewForm.rating = 0; reviewForm.content = ''; }
+
+    // === Data ===
+    async function loadSettings() {
+      const { data } = await supabase.from('settings').select('*').eq('key', 'main').maybeSingle();
+      if (data) { settings.id = data.id; settings.providerName = data.provider_name||'朱大能'; settings.providerAvatar = data.provider_avatar||''; settings.customerName = data.customer_name||'林小赖'; settings.customerAvatar = data.customer_avatar||''; }
+    }
+    async function saveSettings() {
+      const payload = { key:'main', provider_name:settings.providerName, provider_avatar:settings.providerAvatar, customer_name:settings.customerName, customer_avatar:settings.customerAvatar };
+      if (settings.id) { await supabase.from('settings').update(payload).eq('id', settings.id); }
+      else { const { data } = await supabase.from('settings').insert(payload).select().single(); if(data) settings.id = data.id; }
+    }
+    async function loadMenu() {
+      const { data } = await supabase.from('menu_items').select('*').order('sort_order', { ascending: false });
+      menuItems.value = data || [];
+    }
+    async function saveMenuItem() {
+      if (!menuForm.name) return;
+      loading.value = true; loadingText.value = '保存中...';
+      try {
+        let imageUrl = menuForm.imagePreview;
+        if (menuForm.imageFile) imageUrl = await uploadImage(menuForm.imageFile);
+        if (editingItem.value) {
+          await supabase.from('menu_items').update({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() }).eq('id', editingItem.value.id);
+          showToast('修改成功 ✅');
+        } else {
+          await supabase.from('menu_items').insert({ name:menuForm.name, description:menuForm.description, image:imageUrl||'', sort_order:Date.now() });
+          showToast('菜品已上架 🎉');
+        }
+        await loadMenu(); goBack();
+      } catch(e) { showToast('保存失败'); console.error(e); }
+      loading.value = false;
+    }
+    async function deleteMenuItem(item) {
+      if (!confirm(`确定删除「${item.name}」吗？`)) return;
+      await supabase.from('menu_items').delete().eq('id', item.id);
+      await loadMenu(); showToast('已删除');
+    }
+    async function loadOrders() {
+      const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
+      orders.value = data || [];
+    }
+    async function orderFromDetail() {
+      loading.value = true; loadingText.value = '下单中...';
+      try {
+        await supabase.from('orders').insert({ type:'menu', menu_item_id:currentItem.value.id, menu_item_name:currentItem.value.name, menu_item_image:currentItem.value.image||'', status:'pending' });
+        showToast('已下单，等大厨接单~ 🛎️'); floatHeart();
+      } catch(e) { showToast('下单失败'); }
+      loading.value = false;
+    }
+    async function submitCustomOrder() {
+      if (!customForm.name) return;
+      loading.value = true; loadingText.value = '提交中...';
+      try {
+        let imageUrl = '';
+        if (customForm.imageFile) imageUrl = await uploadImage(customForm.imageFile);
+        await supabase.from('orders').insert({ type:'custom', custom_name:customForm.name, custom_image:imageUrl, custom_desc:customForm.description, status:'pending' });
+        showToast('定制点餐已提交 ✨'); goBack(); await loadOrders();
+      } catch(e) { showToast('提交失败'); }
+      loading.value = false;
+    }
+    async function confirmOrder(order) {
+      await supabase.from('orders').update({ status:'confirmed' }).eq('id', order.id);
+      showToast('已接单！开始准备~ 🍳'); floatHeart(); await loadOrders();
+    }
+    function showCancelModal(order) { cancellingOrder.value = order; cancelReason.value = ''; showCancelModalFlag.value = true; }
+    async function doCancelOrder() {
+      if (!cancellingOrder.value) return;
+      await supabase.from('orders').update({ status:'cancelled', cancel_reason:cancelReason.value||'' }).eq('id', cancellingOrder.value.id);
+      showCancelModalFlag.value = false; showToast('已取消'); await loadOrders();
+    }
+    async function loadReviewsForItem(menuItemId) {
+      const { data } = await supabase.from('reviews').select('*').eq('menu_item_id', menuItemId).order('created_at', { ascending: false });
+      currentItemReviews.value = data || [];
+    }
+    async function loadMyReviews() {
+      const { data } = await supabase.from('reviews').select('order_id,from_role').eq('from_role', currentRole.value);
+      myReviews.value = data || [];
+    }
+    function hasReviewed(order) { return myReviews.value.some(r => r.order_id === order.id); }
+    async function submitReview() {
+      if (!reviewForm.content || !reviewForm.rating) return;
+      loading.value = true; loadingText.value = '提交评价...';
+      try {
+        await supabase.from('reviews').insert({ order_id:reviewingOrder.value.id, menu_item_id:reviewingOrder.value.menu_item_id||reviewingOrder.value.id, from_role:currentRole.value, content:reviewForm.content, rating:reviewForm.rating });
+        showToast('评价已提交 💕'); myReviews.value.push({ order_id:reviewingOrder.value.id, from_role:currentRole.value }); goBack();
+      } catch(e) { showToast('提交失败'); }
+      loading.value = false;
+    }
+    async function saveProfile() {
+      if (!profileForm.name) return;
+      if (isProvider.value) settings.providerName = profileForm.name; else settings.customerName = profileForm.name;
+      await saveSettings(); showToast('保存成功 💕'); goBack();
+    }
+    async function onAvatarChange(e) {
+      const file = e.target.files[0]; if (!file) return;
+      loading.value = true; loadingText.value = '上传头像...';
+      try {
+        const url = await uploadImage(file);
+        if (isProvider.value) settings.providerAvatar = url; else settings.customerAvatar = url;
+        await saveSettings(); showToast('头像已更新 ✨');
+      } catch(e) { showToast('上传失败'); }
+      loading.value = false;
+    }
+    function onMenuImageChange(e) { const f = e.target.files[0]; if(!f) return; menuForm.imageFile=f; menuForm.imagePreview=URL.createObjectURL(f); }
+    function onCustomImageChange(e) { const f = e.target.files[0]; if(!f) return; customForm.imageFile=f; customForm.imagePreview=URL.createObjectURL(f); }
+
+    async function uploadImage(file) {
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error } = await supabase.storage.from('images').upload(fileName, file, { cacheControl:'3600', upsert:false });
+      if (error) throw error;
+      const { data } = supabase.storage.from('images').getPublicUrl(fileName);
+      return data.publicUrl;
+    }
+
+    function formatTime(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr), now = new Date(), diff = now - d;
+      if (diff < 60000) return '刚刚';
+      if (diff < 3600000) return Math.floor(diff/60000) + '分钟前';
+      if (diff < 86400000) return Math.floor(diff/3600000) + '小时前';
+      return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    function statusText(s) { return {pending:'待处理',confirmed:'已确认',cancelled:'已取消'}[s]||s; }
+    function getOrderImage(order) { return order.type==='custom' ? order.custom_image : order.menu_item_image; }
+    function floatHeart() {
+      const el = document.createElement('div'); el.className = 'heart-float';
+      el.textContent = ['💕','❤️','🧡','💗'][Math.floor(Math.random()*4)];
+      el.style.left = (Math.random()*60+20)+'%'; el.style.top = '60%';
+      document.body.appendChild(el); setTimeout(() => el.remove(), 1500);
+    }
+
+    async function loadData() {
+      loading.value = true; loadingText.value = '加载中...';
+      try { await loadSettings(); await loadMenu(); await loadOrders(); await loadMyReviews(); }
+      catch(e) { console.error('Init error:', e); initError.value = true; }
+      loading.value = false;
+    }
+
+    onMounted(async () => {
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL') { loading.value = false; initError.value = true; return; }
+      if (currentRole.value) { await loadData(); } else { try { await loadSettings(); } catch(e){} loading.value = false; }
+      setInterval(async () => { if (currentRole.value && !loading.value) { await loadOrders(); if (page.value==='menu') await loadMenu(); } }, 30000);
+    });
+
+    return {
+      loading, loadingText, initError, toast, toastKey, currentRole, page, settings,
+      menuItems, editingItem, menuForm, currentItem, currentItemReviews,
+      orders, orderFilter, customForm, showCancelModalFlag, cancelReason,
+      reviewingOrder, reviewForm, myReviews, profileForm,
+      isProvider, myName, myAvatar, showNav, filteredOrders, pendingCount,
+      selectRole, switchRole, goPage, goBack, goProfile, goAddMenu,
+      editMenuItem, goMenuDetail, goCustomOrder, goReview,
+      saveMenuItem, deleteMenuItem, orderFromDetail, submitCustomOrder,
+      confirmOrder, showCancelModal, doCancelOrder,
+      hasReviewed, submitReview, saveProfile, onAvatarChange,
+      onMenuImageChange, onCustomImageChange,
+      formatTime, statusText, getOrderImage, floatHeart,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
